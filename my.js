@@ -9,7 +9,7 @@
       
 
     Lampa.Utils.putScriptAsync([  
-        'https://foxstudio24.github.io/lampa/mob.js',
+        'https://Rusickk.github.io/lampa/mob.js',
         'https://darkestclouds.github.io/plugins/applecation/applecation.min.js',  
     ], function () {  
         console.log('Плагины загружены');  
