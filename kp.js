@@ -43,6 +43,26 @@
         Lampa.Storage.set('kinopoisk_refresh_token', '');
     }
 
+    function clearClientCache() {
+        try {
+            var keysToRemove = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k && (k.indexOf('kp_resolved_id_') === 0 || k.indexOf('kp_tmdb_') === 0 || k.indexOf('kp_trailers_') === 0)) {
+                    keysToRemove.push(k);
+                }
+            }
+            keysToRemove.forEach(function (k) {
+                try {
+                    localStorage.removeItem(k);
+                } catch (e) {}
+                try {
+                    if (Lampa.Storage && Lampa.Storage.set) Lampa.Storage.set(k, '');
+                } catch (e) {}
+            });
+        } catch (err) {}
+    }
+
     function syncUserProfile(token, cb) {
         if (!token) return;
         network.silent('https://login.yandex.ru/info?format=json', function (userData) {
@@ -209,14 +229,6 @@
             var token = getAccountToken();
             if (!token) item.hide();
             else item.show();
-
-            // Подпись автора внизу страницы настроек
-            setTimeout(function () {
-                var parent = item.parent();
-                if (parent && parent.length && parent.find('.kp-settings-author').length === 0) {
-                    parent.append('<div class="kp-settings-author" style="text-align: center; margin-top: 4.5em; padding-bottom: 2em; opacity: 0.4; font-size: 0.85em; letter-spacing: 0.05em; pointer-events: none;">Автор плагина : github.com/Rusickk</div>');
-                }
-            }, 60);
         },
         onChange: function () {
             var token = getAccountToken();
@@ -233,6 +245,44 @@
                         clearAccount();
                         updateSettingsUI();
                         showNotify('Вы вышли из аккаунта');
+                    }
+                    Lampa.Controller.toggle('settings_component');
+                },
+                onBack: function () {
+                    Lampa.Controller.toggle('settings_component');
+                }
+            });
+        }
+    });
+
+    // Кнопка «Очистить кэш»
+    Lampa.SettingsApi.addParam({
+        component: 'kinopoisk',
+        param: { type: 'button', name: 'kp_smart_clear_cache' },
+        field: {
+            name: 'Очистить кэш',
+            description: 'Сбросить сохраненные на устройстве ID фильмов и трейлеры'
+        },
+        onRender: function (item) {
+            // Подпись автора внизу страницы настроек
+            setTimeout(function () {
+                var parent = item.parent();
+                if (parent && parent.length && parent.find('.kp-settings-author').length === 0) {
+                    parent.append('<div class="kp-settings-author" style="text-align: center; margin-top: 4.5em; padding-bottom: 2em; opacity: 0.4; font-size: 0.85em; letter-spacing: 0.05em; pointer-events: none;">Автор плагина : github.com/Rusickk</div>');
+                }
+            }, 60);
+        },
+        onChange: function () {
+            Lampa.Select.show({
+                title: 'Очистить кэш плагина?',
+                items: [
+                    { title: 'Да, очистить', confirm: true },
+                    { title: 'Отмена' }
+                ],
+                onSelect: function (a) {
+                    if (a.confirm) {
+                        clearClientCache();
+                        showNotify('Кэш плагина успешно очищен');
                     }
                     Lampa.Controller.toggle('settings_component');
                 },
@@ -714,9 +764,22 @@
         var cards = rawItems.map(function (item) {
             var m = item.movie || item;
             var t = item.tmdb || {};
+
+            var isFilmOnKp = (m.__typename === 'Film');
+            var isTvOnKp = (m.__typename === 'TvSeries' || m.__typename === 'MiniSeries' || m.__typename === 'TvShow' || (m.releaseYears && m.releaseYears.length > 0));
+
+            // Если на Кинопоиске фильм, а в TMDB сериал (ошибочное сопоставление), сбрасываем ошибочный TMDB
+            if (isFilmOnKp && t.type === 'tv') {
+                t = {};
+            }
+
+            var isTv = false;
+            if (isTvOnKp) isTv = true;
+            else if (isFilmOnKp) isTv = false;
+            else if (t.type === 'tv') isTv = true;
+
             var tmdbId = t.id || null;
-            var isTv = (t.type === 'tv') || m.__typename === 'TvSeries' || m.__typename === 'MiniSeries' || m.__typename === 'TvShow' || (m.releaseYears && m.releaseYears.length > 0);
-            var localizedTitle = t.title || (m.title && (m.title.localized || m.title.original)) || m.name || m.title || '';
+            var localizedTitle = t.title || (m.title && (m.title.localized || m.title.original || m.title.russian)) || m.name || m.title || '';
             var originalTitle = (m.title && m.title.original) || '';
             var year = t.year || m.productionYear || m.fallbackYear || (m.releaseYears && m.releaseYears[0] && m.releaseYears[0].start) || (m.release_date ? m.release_date.slice(0, 4) : '');
             var ratingVal = t.rating || (m.rating && m.rating.kinopoisk && m.rating.kinopoisk.value) || m.vote_average || 0;
@@ -831,6 +894,19 @@
             var m = item.movie || {};
             var t = item.tmdb || {};
 
+            var isFilmOnKp = (m.__typename === 'Film');
+            var isTvOnKp = (m.__typename === 'TvSeries' || m.__typename === 'TvShow' || m.__typename === 'MiniSeries' || !!m.releaseYears);
+
+            // Если на Кинопоиске фильм, а в TMDB сериал (ошибочное сопоставление), сбрасываем ошибочный TMDB
+            if (isFilmOnKp && t.type === 'tv') {
+                t = {};
+            }
+
+            var isTv = false;
+            if (isTvOnKp) isTv = true;
+            else if (isFilmOnKp) isTv = false;
+            else if (t.type === 'tv') isTv = true;
+
             var voteReaction = (item.reactions || []).find(function (r) {
                 return r.__typename === 'Vote' || (r.value !== undefined);
             });
@@ -840,7 +916,6 @@
             var originalTitle = (m.title && m.title.original) || '';
 
             var year = t.year || m.productionYear || (m.releaseYears ? m.releaseYears.start : '') || '';
-            var isTv = (t.type === 'tv') || m.__typename === 'TvSeries' || m.__typename === 'TvShow' || m.__typename === 'MiniSeries' || !!m.releaseYears;
 
             var kpPoster = '';
             if (m.poster && m.poster.avatarsUrl) {
@@ -1029,7 +1104,8 @@
         // Поиск через kinoapi.lampac.dev в нашем воркере (по KP ID и названию)
         var resolveUrl = scriptUrl + '?method=resolveTmdb&kp_id=' + encodeURIComponent(movieCard.kinopoisk_id) +
             '&title=' + encodeURIComponent(queryTitle) +
-            '&year=' + encodeURIComponent(queryYear);
+            '&year=' + encodeURIComponent(queryYear) +
+            '&type=' + encodeURIComponent(movieCard.type === 'tv' ? 'tv' : 'movie');
 
         network.silent(resolveUrl, function (res) {
             if (res && res.tmdb) {
