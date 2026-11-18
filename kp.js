@@ -111,12 +111,28 @@
         component: 'kinopoisk',
         param: {
             name: 'kp_social_alias',
-            type: 'input',
-            default: 'rusick'
+            type: 'button'
         },
         field: {
             name: 'Логин на Кинопоиске',
-            description: 'Используется для вкладки «Оценки и просмотры»'
+            description: getSocialAlias()
+        },
+        onRender: function (item) {
+            item.find('.settings-param__descr').text(getSocialAlias());
+        },
+        onChange: function () {
+            Lampa.Input.edit({
+                title: 'Логин на Кинопоиске',
+                value: getSocialAlias(),
+                free: true,
+                nosave: true
+            }, function (new_val) {
+                if (new_val && new_val.trim()) {
+                    Lampa.Storage.set('kp_social_alias', new_val.trim());
+                    var elem = jq('div[data-name="kp_social_alias"]');
+                    elem.find('.settings-param__descr').text(new_val.trim());
+                }
+            });
         }
     });
 
@@ -548,14 +564,14 @@
         };
     }
 
-    // Загрузка списка «Оценки и просмотры»
+    // Загрузка списка «Оценки и просмотры» (Кинопоиск ограничивает максимум 20 элементов на запрос)
     function loadVotedWatchlist(token, page, onSuccess, onError) {
         if (typeof page === 'function') {
             onSuccess = page;
             page = 1;
         }
         page = page || 1;
-        var limit = 50;
+        var limit = 20;
         var offset = (page - 1) * limit;
         var alias = getSocialAlias();
 
@@ -656,7 +672,7 @@
 
         return {
             total: total,
-            total_pages: Math.ceil(total / 50) || 1,
+            total_pages: Math.ceil(total / 20) || 1,
             items: cards
         };
     }
