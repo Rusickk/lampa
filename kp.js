@@ -247,9 +247,8 @@
         if (e.type !== 'complite') return;
 
         var checkTimer = setInterval(function () {
-            var target = jq('.full-start__buttons');
-            if (target.length === 0) target = jq('.full-start-new__buttons');
-            if (target.length === 0) target = jq('.buttons--container');
+            var container = jq('.buttons--container');
+            var target = container.length > 0 ? container : jq('.full-start-new__buttons, .full-start__buttons');
 
             if (target.length > 0) {
                 clearInterval(checkTimer);
@@ -444,11 +443,15 @@
 
         var cards = rawItems.map(function (item) {
             var m = item.movie || item;
-            var localizedTitle = (m.title && (m.title.localized || m.title.original)) || m.name || m.title || '';
+            var t = item.tmdb || {};
+            var tmdbId = t.id || null;
+            var isTv = t.type === 'tv' || m.__typename === 'TvSeries';
+            var localizedTitle = t.title || (m.title && (m.title.localized || m.title.original)) || m.name || m.title || '';
             var originalTitle = (m.title && m.title.original) || '';
-            var year = m.productionYear || (m.release_date ? m.release_date.slice(0, 4) : '');
-            var ratingVal = (m.rating && m.rating.kinopoisk && m.rating.kinopoisk.value) || m.vote_average || 0;
-            var posterUrl = (m.poster && m.poster.avatarsUrl) ? ('https:' + m.poster.avatarsUrl + '/300x450') : (m.poster_path ? ('https://image.tmdb.org/t/p/w300' + m.poster_path) : '');
+            var year = t.year || m.productionYear || m.fallbackYear || (m.releaseYears && m.releaseYears[0] && m.releaseYears[0].start) || (m.release_date ? m.release_date.slice(0, 4) : '');
+            var ratingVal = t.rating || (m.rating && m.rating.kinopoisk && m.rating.kinopoisk.value) || m.vote_average || 0;
+            var avatars = (m.gallery && m.gallery.posters && m.gallery.posters.vertical && m.gallery.posters.vertical.avatarsUrl) || (m.poster && m.poster.avatarsUrl) || '';
+            var posterUrl = t.poster || (avatars ? ((avatars.indexOf('http') === 0 ? avatars : ('https:' + (avatars.indexOf('//') === 0 ? avatars : ('//' + avatars)))) + '/300x450') : '');
 
             return {
                 title: localizedTitle,
@@ -460,9 +463,13 @@
                 img: posterUrl,
                 poster_path: posterUrl,
                 kinopoisk_id: m.id,
-                id: m.id,
+                id: tmdbId || m.id,
+                tmdb_id: tmdbId,
+                tmdb_ready: !!tmdbId,
+                type: isTv ? 'tv' : 'movie',
+                method: isTv ? 'tv' : 'movie',
                 source: 'tmdb',
-                need_resolve: true
+                need_resolve: !tmdbId
             };
         });
 
@@ -523,14 +530,15 @@
         };
     }
 
-    // Открытие фильма при клике (с поиском TMDB ID при необходимости)
+    // Открытие фильма при клике (с поиском TMDB ID через kinoapi при необходимости)
     function openMovieCard(movieCard) {
-        if (movieCard.tmdb_ready && movieCard.id) {
+        if (movieCard.tmdb_id || (movieCard.tmdb_ready && movieCard.id)) {
+            var targetId = movieCard.tmdb_id || movieCard.id;
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
-                id: movieCard.id,
-                method: movieCard.name ? 'tv' : 'movie',
+                id: targetId,
+                method: movieCard.method || (movieCard.type === 'tv' ? 'tv' : 'movie'),
                 card: movieCard,
                 source: 'tmdb'
             });
@@ -545,45 +553,42 @@
 
         if (cachedTmdbId) {
             movieCard.id = cachedTmdbId;
+            movieCard.tmdb_id = cachedTmdbId;
             movieCard.tmdb_ready = true;
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
                 id: cachedTmdbId,
-                method: movieCard.name ? 'tv' : 'movie',
+                method: movieCard.method || (movieCard.name ? 'tv' : 'movie'),
                 card: movieCard,
                 source: 'tmdb'
             });
             return;
         }
 
-        // Поиск через TMDB по названию и году
-        var searchTitle = movieCard.original_title || movieCard.title;
-        var searchYear = movieCard.release_date ? movieCard.release_date.slice(0, 4) : '';
-        var cubDomain = (Lampa.Manifest && Lampa.Manifest.cub_domain) ? Lampa.Manifest.cub_domain : 'cub.watch';
-        var searchUrl = Lampa.Utils.protocol() + 'tmdb.' + cubDomain + '/3/search/multi?query=' + encodeURIComponent(searchTitle) + '&api_key=4ef0d7355d9ffb5151e987764708ce96&language=ru';
-        if (searchYear) searchUrl += '&year=' + searchYear;
-
-        network.silent(searchUrl, function (res) {
-            var found = (res && res.results && res.results[0]) ? res.results[0] : null;
-            if (found && found.id) {
-                Lampa.Storage.set(cacheKey, found.id);
-                found.kinopoisk_id = movieCard.kinopoisk_id;
+        // Поиск через kinoapi.lampac.dev в нашем воркере
+        var resolveUrl = scriptUrl + '?method=resolveTmdb&kp_id=' + encodeURIComponent(movieCard.kinopoisk_id);
+        network.silent(resolveUrl, function (res) {
+            if (res && res.tmdb) {
+                Lampa.Storage.set(cacheKey, res.tmdb);
+                movieCard.id = res.tmdb;
+                movieCard.tmdb_id = res.tmdb;
+                movieCard.tmdb_ready = true;
+                if (res.data && res.data.type) movieCard.method = res.data.type;
                 Lampa.Activity.push({
                     url: '',
                     component: 'full',
-                    id: found.id,
-                    method: found.media_type || (found.name ? 'tv' : 'movie'),
-                    card: found,
+                    id: res.tmdb,
+                    method: movieCard.method || (movieCard.name ? 'tv' : 'movie'),
+                    card: movieCard,
                     source: 'tmdb'
                 });
             } else {
-                // Если в TMDB не найдено, открываем с имеющимися данными
                 Lampa.Activity.push({
                     url: '',
                     component: 'full',
                     id: movieCard.id,
-                    method: 'movie',
+                    method: movieCard.method || 'movie',
                     card: movieCard,
                     source: 'tmdb'
                 });
@@ -593,7 +598,7 @@
                 url: '',
                 component: 'full',
                 id: movieCard.id,
-                method: 'movie',
+                method: movieCard.method || 'movie',
                 card: movieCard,
                 source: 'tmdb'
             });
