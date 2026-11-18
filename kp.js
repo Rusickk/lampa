@@ -438,39 +438,79 @@
         }
 
         var ptw = data.data.userProfile.userData.plannedToWatch.movies;
-        var rawItems = ptw.items || [];
-        var total = ptw.total || rawItems.length;
+        var rawItems = (ptw && ptw.items) || [];
+        var total = (ptw && ptw.total) || rawItems.length;
 
         var cards = rawItems.map(function (item) {
             var m = item.movie || item;
             var t = item.tmdb || {};
             var tmdbId = t.id || null;
-            var isTv = t.type === 'tv' || m.__typename === 'TvSeries';
+            var isTv = (t.type === 'tv') || m.__typename === 'TvSeries' || m.__typename === 'MiniSeries' || m.__typename === 'TvShow' || (m.releaseYears && m.releaseYears.length > 0);
             var localizedTitle = t.title || (m.title && (m.title.localized || m.title.original)) || m.name || m.title || '';
             var originalTitle = (m.title && m.title.original) || '';
             var year = t.year || m.productionYear || m.fallbackYear || (m.releaseYears && m.releaseYears[0] && m.releaseYears[0].start) || (m.release_date ? m.release_date.slice(0, 4) : '');
             var ratingVal = t.rating || (m.rating && m.rating.kinopoisk && m.rating.kinopoisk.value) || m.vote_average || 0;
-            var avatars = (m.gallery && m.gallery.posters && m.gallery.posters.vertical && m.gallery.posters.vertical.avatarsUrl) || (m.poster && m.poster.avatarsUrl) || '';
-            var posterUrl = t.poster || (avatars ? ((avatars.indexOf('http') === 0 ? avatars : ('https:' + (avatars.indexOf('//') === 0 ? avatars : ('//' + avatars)))) + '/300x450') : '');
 
-            return {
-                title: localizedTitle,
-                name: localizedTitle,
-                original_title: originalTitle,
-                release_date: year ? (year + '-01-01') : '',
-                first_air_date: year ? (year + '-01-01') : '',
+            // Извлечение постера: приоритет TMDB, затем аватары Кинопоиска
+            var avatars = (m.gallery && m.gallery.posters && m.gallery.posters.vertical && (m.gallery.posters.vertical.avatarsUrl || m.gallery.posters.vertical.fallbackUrl)) ||
+                          (m.poster && (m.poster.avatarsUrl || m.poster.fallbackUrl)) || '';
+
+            var kpPoster = '';
+            if (avatars) {
+                if (avatars.indexOf('http') === 0) kpPoster = avatars;
+                else if (avatars.indexOf('//') === 0) kpPoster = 'https:' + avatars;
+                else kpPoster = 'https://' + avatars;
+
+                if (!/\.(jpg|png|webp)$/i.test(kpPoster) && !/\/\d+x\d+$/i.test(kpPoster) && !/\/orig$/i.test(kpPoster)) {
+                    kpPoster = kpPoster + '/300x450';
+                }
+            }
+
+            var finalPosterUrl = t.poster || kpPoster || '';
+            var tmdbRelativePath = '';
+
+            // Если постер с TMDB, извлекаем относительный путь для poster_path (/xxx.jpg)
+            if (finalPosterUrl && finalPosterUrl.indexOf('image.tmdb.org/t/p/') !== -1) {
+                tmdbRelativePath = finalPosterUrl.replace(/^https?:\/\/image\.tmdb\.org\/t\/p\/[^/]+/, '');
+            }
+
+            var card = {
                 vote_average: ratingVal,
-                img: posterUrl,
-                poster_path: posterUrl,
+                img: finalPosterUrl,
+                poster: finalPosterUrl,
+                background_image: finalPosterUrl,
                 kinopoisk_id: m.id,
                 id: tmdbId || m.id,
                 tmdb_id: tmdbId,
                 tmdb_ready: !!tmdbId,
-                type: isTv ? 'tv' : 'movie',
-                method: isTv ? 'tv' : 'movie',
-                source: 'tmdb',
-                need_resolve: !tmdbId
+                source: 'tmdb'
             };
+
+            // ВАЖНО: Если poster_path содержит полный URL (начинается с http),
+            // Лампа в Api.img склеивает его с базой TMDB: https://image.tmdb.org/t/p/w300/https://... и картинка ломается!
+            // Поэтому poster_path выставляем ТОЛЬКО для относительных путей TMDB.
+            // Для внешних картинок (Яндекс) Лампа использует card.poster или card.img напрямую!
+            if (tmdbRelativePath) {
+                card.poster_path = tmdbRelativePath;
+            }
+
+            // В Лампе наличие свойства `name` трактуется как сериал (медиа = 'tv').
+            // Для фильмов должно быть только `title`, иначе Лампа открывает сериал и выдает 404!
+            if (isTv) {
+                card.name = localizedTitle;
+                card.original_name = originalTitle;
+                card.first_air_date = year ? (year + '-01-01') : '';
+                card.type = 'tv';
+                card.method = 'tv';
+            } else {
+                card.title = localizedTitle;
+                card.original_title = originalTitle;
+                card.release_date = year ? (year + '-01-01') : '';
+                card.type = 'movie';
+                card.method = 'movie';
+            }
+
+            return card;
         });
 
         return {
@@ -502,7 +542,7 @@
             // Добавляем 3 мини-постера из первых фильмов списка
             var previews = (element.results || []).slice(0, 3);
             previews.forEach(function (item, i) {
-                var imgUrl = item.img || item.poster_path || './img/img_load.svg';
+                var imgUrl = item.img || item.poster || item.poster_path || './img/img_load.svg';
                 var img = jq('<img class="card__img i-' + i + '" src="' + imgUrl + '">');
                 html.find('.bookmarks-folder__body').append(img);
             });
@@ -530,9 +570,9 @@
         };
     }
 
-    // Открытие фильма при клике (с поиском TMDB ID через kinoapi при необходимости)
+    // Открытие фильма при клике (с поиском TMDB ID через kinoapi и поиск TMDB)
     function openMovieCard(movieCard) {
-        if (movieCard.tmdb_id || (movieCard.tmdb_ready && movieCard.id)) {
+        if (movieCard.tmdb_id || (movieCard.tmdb_ready && movieCard.id && movieCard.id !== movieCard.kinopoisk_id)) {
             var targetId = movieCard.tmdb_id || movieCard.id;
             Lampa.Activity.push({
                 url: '',
@@ -545,9 +585,6 @@
             return;
         }
 
-        Lampa.Noty.show('Открываем карточку...');
-
-        // Проверяем локальный кэш сопоставления
         var cacheKey = 'kp_tmdb_' + movieCard.kinopoisk_id;
         var cachedTmdbId = Lampa.Storage.get(cacheKey, '');
 
@@ -559,15 +596,23 @@
                 url: '',
                 component: 'full',
                 id: cachedTmdbId,
-                method: movieCard.method || (movieCard.name ? 'tv' : 'movie'),
+                method: movieCard.method || (movieCard.type === 'tv' ? 'tv' : 'movie'),
                 card: movieCard,
                 source: 'tmdb'
             });
             return;
         }
 
-        // Поиск через kinoapi.lampac.dev в нашем воркере
-        var resolveUrl = scriptUrl + '?method=resolveTmdb&kp_id=' + encodeURIComponent(movieCard.kinopoisk_id);
+        Lampa.Noty.show('Поиск фильма в каталоге...');
+
+        var queryTitle = movieCard.title || movieCard.name || movieCard.original_title || '';
+        var queryYear = movieCard.release_date ? movieCard.release_date.slice(0, 4) : (movieCard.first_air_date ? movieCard.first_air_date.slice(0, 4) : '');
+
+        // Поиск через kinoapi.lampac.dev в нашем воркере (по KP ID и названию)
+        var resolveUrl = scriptUrl + '?method=resolveTmdb&kp_id=' + encodeURIComponent(movieCard.kinopoisk_id) +
+            '&title=' + encodeURIComponent(queryTitle) +
+            '&year=' + encodeURIComponent(queryYear);
+
         network.silent(resolveUrl, function (res) {
             if (res && res.tmdb) {
                 Lampa.Storage.set(cacheKey, res.tmdb);
@@ -579,29 +624,51 @@
                     url: '',
                     component: 'full',
                     id: res.tmdb,
-                    method: movieCard.method || (movieCard.name ? 'tv' : 'movie'),
+                    method: movieCard.method || (movieCard.type === 'tv' ? 'tv' : 'movie'),
                     card: movieCard,
                     source: 'tmdb'
                 });
             } else {
+                searchTmdbFallback(movieCard, cacheKey);
+            }
+        }, function () {
+            searchTmdbFallback(movieCard, cacheKey);
+        });
+    }
+
+    function searchTmdbFallback(movieCard, cacheKey) {
+        var query = movieCard.title || movieCard.name || movieCard.original_title;
+        if (!query) {
+            Lampa.Noty.show('Не удалось найти фильм в TMDB');
+            return;
+        }
+
+        var key = (Lampa.Api && Lampa.Api.key) ? Lampa.Api.key() : '4ef0d7355d9ffb5151e0777479f0a2f9';
+        var lang = Lampa.Storage.get('language', 'ru');
+        var searchUrl = 'https://api.themoviedb.org/3/search/multi?api_key=' + key + '&query=' + encodeURIComponent(query) + '&language=' + lang;
+
+        network.silent(searchUrl, function (res) {
+            var found = res && res.results && res.results.length > 0 ? res.results[0] : null;
+            if (found && found.id) {
+                if (cacheKey) Lampa.Storage.set(cacheKey, found.id);
+                movieCard.id = found.id;
+                movieCard.tmdb_id = found.id;
+                movieCard.tmdb_ready = true;
+                var method = found.media_type || (found.name ? 'tv' : 'movie');
+                movieCard.method = method;
                 Lampa.Activity.push({
                     url: '',
                     component: 'full',
-                    id: movieCard.id,
-                    method: movieCard.method || 'movie',
+                    id: found.id,
+                    method: method,
                     card: movieCard,
                     source: 'tmdb'
                 });
+            } else {
+                Lampa.Noty.show('Фильм не найден в базе TMDB');
             }
         }, function () {
-            Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: movieCard.id,
-                method: movieCard.method || 'movie',
-                card: movieCard,
-                source: 'tmdb'
-            });
+            Lampa.Noty.show('Ошибка поиска фильма в TMDB');
         });
     }
 
@@ -673,6 +740,16 @@
             });
         };
 
+        comp.onAppend = function (line, lineElement) {
+            line.onSelect = function (target, cardData) {
+                if (cardData.onEnter) {
+                    cardData.onEnter(target, cardData);
+                } else {
+                    openMovieCard(cardData);
+                }
+            };
+        };
+
         return comp;
     }
 
@@ -697,12 +774,6 @@
                     return;
                 }
 
-                data.items.forEach(function (card) {
-                    card.onEnter = function () {
-                        openMovieCard(card);
-                    };
-                });
-
                 comp.build({
                     secuses: true,
                     page: 1,
@@ -713,6 +784,12 @@
                 comp.activity.loader(false);
                 comp.empty();
             });
+        };
+
+        comp.cardRender = function (obj, element, card) {
+            card.onEnter = function () {
+                openMovieCard(element);
+            };
         };
 
         comp.nextPageReuest = function (obj, resolve, reject) {
