@@ -12,7 +12,7 @@
     var scriptUrl = 'https://kp.kovalchukruslan21.workers.dev/';
 
     // Иконки SVG
-    var kpLogo = '<svg width="239" height="239" viewBox="0 0 239 239" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xml:space="preserve"><path fill="currentColor" d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path fill="currentColor" d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z" fill="currentColor"/></svg>';
+    var kpLogo = '<svg viewBox="0 0 215 215" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path fill="currentColor" d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z" fill="currentColor"/></svg>';
     var buttonRatingIcon = '<svg class="button--kinopoisk_rating_icon" width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.6162 7.10981L15.8464 7.55198L16.3381 7.63428L22.2841 8.62965C22.8678 8.72736 23.0999 9.44167 22.6851 9.86381L18.4598 14.1641L18.1104 14.5196L18.184 15.0127L19.0748 20.9752C19.1622 21.5606 18.5546 22.002 18.025 21.738L12.6295 19.0483L12.1833 18.8259L11.7372 19.0483L6.34171 21.738C5.81206 22.002 5.20443 21.5606 5.29187 20.9752L6.18264 15.0127L6.25629 14.5196L5.9069 14.1641L1.68155 9.86381C1.26677 9.44167 1.49886 8.72736 2.08255 8.62965L8.02855 7.63428L8.52022 7.55198L8.75043 7.10981L11.5345 1.76241C11.8078 1.23748 12.5589 1.23748 12.8322 1.76241L15.6162 7.10981Z" stroke="currentColor" stroke-width="2.2"></path></svg>';
     var buttonTrailersIcon = '<svg class="button--kinopoisk_trailers_icon" width="239" height="239" viewBox="0 0 239 239" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xml:space="preserve"><path fill="currentColor" d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path fill="currentColor" d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z" fill="currentColor"/></svg>';
 
@@ -295,8 +295,8 @@
                 // -------------------------------------------------------------
                 // 3.1. Кнопка «КП» (в основном ряду карточки)
                 // -------------------------------------------------------------
-                if (mainTarget.find('.button--kinopoisk_main').length === 0) {
-                    var btnKp = jq('<div class="full-start__button selector button--kinopoisk_main" style="position: relative;"><span style="display:inline-flex;align-items:center;width:1.4em;height:1.4em;margin-right:0.4em;vertical-align:middle;">' + kpLogo + '</span><span>КП</span></div>');
+                if (mainTarget.find('.button--kinopoisk').length === 0) {
+                    var btnKp = jq('<div class="full-start__button selector button--kinopoisk">' + kpLogo + '<span>КП</span></div>');
                     mainTarget.append(btnKp);
 
                     // Фоновая предзагрузка статуса (для мгновенного открытия)
@@ -370,7 +370,7 @@
                         });
                     });
 
-                    // Главное меню Кинопоиска (3 пункта)
+                    // Главное меню Кинопоиска (2 пункта)
                     function openKpMainMenu(kpId, status) {
                         var voteTitle = status.vote ? ('Оценить (Ваша оценка: ' + status.vote + ' ★)') : 'Оценить';
 
@@ -384,11 +384,6 @@
                                 title: 'Добавить в список',
                                 subtitle: 'Буду смотреть, Просмотрено',
                                 action: 'lists'
-                            },
-                            {
-                                title: 'Трейлеры КП',
-                                subtitle: 'Смотреть трейлеры фильма',
-                                action: 'trailers'
                             }
                         ];
 
@@ -400,8 +395,6 @@
                                     openRatingMenu(kpId, status);
                                 } else if (a.action === 'lists') {
                                     openListsMenu(kpId, status);
-                                } else if (a.action === 'trailers') {
-                                    openTrailersMenu(kpId);
                                 }
                             },
                             onBack: function () {
@@ -456,127 +449,92 @@
                         });
                     }
 
-                    // Подменю 2: Добавить в список («Буду смотреть» и «Просмотрено»)
+                    // Подменю 2: Добавить в список (дизайн Избранного с чекбоксами)
                     function openListsMenu(kpId, status) {
                         var listItems = [
                             {
-                                title: (status.plannedToWatch ? '✓ ' : '') + 'Буду смотреть',
-                                subtitle: status.plannedToWatch ? 'Добавлено в «Буду смотреть»' : 'Не добавлено',
-                                type: 'planned'
+                                title: 'Буду смотреть',
+                                type: 'planned',
+                                checkbox: true,
+                                checked: !!status.plannedToWatch
                             },
                             {
-                                title: (status.watched ? '✓ ' : '') + 'Просмотрено',
-                                subtitle: status.watched ? 'Отмечено как просмотрено' : 'Не отмечено',
-                                type: 'watched'
+                                title: 'Просмотрено',
+                                type: 'watched',
+                                checkbox: true,
+                                checked: !!status.watched
                             }
                         ];
 
                         Lampa.Select.show({
-                            title: 'Списки Кинопоиска',
+                            title: 'Добавить в список',
                             items: listItems,
-                            onSelect: function (a) {
+                            onCheck: function (a) {
                                 if (a.type === 'planned') {
-                                    if (status.plannedToWatch) {
-                                        Lampa.Noty.show('Удаляю из «Буду смотреть»...');
-                                        network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=false&oauth=' + token, function (res) {
-                                            if (res && res.status === 'SUCCESS') {
-                                                status.plannedToWatch = false;
-                                                Lampa.Noty.show('Удалено из «Буду смотреть»');
-                                            } else {
-                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
-                                            }
-                                        }, function () {
-                                            Lampa.Noty.show('Ошибка соединения');
-                                        });
-                                    } else {
+                                    if (a.checked) {
                                         Lampa.Noty.show('Добавляю в «Буду смотреть»...');
                                         network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=true&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.plannedToWatch = true;
                                                 Lampa.Noty.show('Добавлено в «Буду смотреть»');
                                             } else {
+                                                a.checked = false;
                                                 Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось добавить'));
                                             }
                                         }, function () {
+                                            a.checked = false;
+                                            Lampa.Noty.show('Ошибка соединения');
+                                        });
+                                    } else {
+                                        Lampa.Noty.show('Удаляю из «Буду смотреть»...');
+                                        network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=false&oauth=' + token, function (res) {
+                                            if (res && res.status === 'SUCCESS') {
+                                                status.plannedToWatch = false;
+                                                Lampa.Noty.show('Удалено из «Буду смотреть»');
+                                            } else {
+                                                a.checked = true;
+                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
+                                            }
+                                        }, function () {
+                                            a.checked = true;
                                             Lampa.Noty.show('Ошибка соединения');
                                         });
                                     }
                                 } else if (a.type === 'watched') {
-                                    if (status.watched) {
-                                        Lampa.Noty.show('Удаляю из просмотренных...');
-                                        network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=false&oauth=' + token, function (res) {
-                                            if (res && res.status === 'SUCCESS') {
-                                                status.watched = false;
-                                                Lampa.Noty.show('Удалено из просмотренных');
-                                            } else {
-                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
-                                            }
-                                        }, function () {
-                                            Lampa.Noty.show('Ошибка соединения');
-                                        });
-                                    } else {
+                                    if (a.checked) {
                                         Lampa.Noty.show('Отмечаю как просмотрено...');
                                         network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=true&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.watched = true;
                                                 Lampa.Noty.show('Добавлено в просмотренные');
                                             } else {
+                                                a.checked = false;
                                                 Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось отметить'));
                                             }
                                         }, function () {
+                                            a.checked = false;
+                                            Lampa.Noty.show('Ошибка соединения');
+                                        });
+                                    } else {
+                                        Lampa.Noty.show('Удаляю из просмотренных...');
+                                        network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=false&oauth=' + token, function (res) {
+                                            if (res && res.status === 'SUCCESS') {
+                                                status.watched = false;
+                                                Lampa.Noty.show('Удалено из просмотренных');
+                                            } else {
+                                                a.checked = true;
+                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
+                                            }
+                                        }, function () {
+                                            a.checked = true;
                                             Lampa.Noty.show('Ошибка соединения');
                                         });
                                     }
                                 }
-                                Lampa.Controller.toggle('full_start');
                             },
                             onBack: function () {
                                 openKpMainMenu(kpId, status);
                             }
-                        });
-                    }
-
-                    // Подменю 3: Трейлеры КП
-                    function openTrailersMenu(kpId) {
-                        var requestUrl = scriptUrl + '?method=getTrailers&kp_id=' + kpId;
-                        Lampa.Noty.show('Загрузка трейлеров...');
-                        network.silent(requestUrl, function (data) {
-                            if (data && data.data && data.data.movie && data.data.movie.trailers && data.data.movie.trailers.total > 0) {
-                                var trailers = data.data.movie.trailers.items;
-                                var trailersList = [];
-                                for (var i = 0; i < trailers.length; i++) {
-                                    var tr = trailers[i];
-                                    var date = new Date(tr.createdAt);
-                                    trailersList.push({
-                                        title: tr.title,
-                                        subtitle: date.getDate() + ' ' + Lampa.Lang.translate('month_' + date.getMonth() + '_e') + ' ' + date.getFullYear(),
-                                        url: scriptUrl + '?url=' + encodeURIComponent(tr.streamUrl),
-                                        icon: '<img class="size-youtube" src="https:' + tr.preview.avatarsUrl + '/280x178">',
-                                        template: 'selectbox_icon'
-                                    });
-                                }
-
-                                if (trailersList.length > 0) {
-                                    Lampa.Select.show({
-                                        title: 'Трейлеры КП',
-                                        items: trailersList,
-                                        onSelect: function (trItem) {
-                                            Lampa.Player.play(trItem);
-                                            Lampa.Player.playlist(trailersList);
-                                            Lampa.Controller.toggle('player');
-                                        },
-                                        onBack: function () {
-                                            openKpMainMenu(kpId, movie._kp_status || {});
-                                        }
-                                    });
-                                } else {
-                                    Lampa.Noty.show('Трейлеры не найдены');
-                                }
-                            } else {
-                                Lampa.Noty.show('Трейлеры не найдены');
-                            }
-                        }, function () {
-                            Lampa.Noty.show('Ошибка загрузки трейлеров');
                         });
                     }
                 }
@@ -833,7 +791,7 @@
                 tmdbRelativePath = finalPosterUrl.replace(/^https?:\/\/image\.tmdb\.org\/t\/p\/[^/]+/, '');
             }
 
-            var displayRating = userVote !== null ? userVote : (m.rating && m.rating.kinopoisk && m.rating.kinopoisk.value ? m.rating.kinopoisk.value : 0);
+            var displayRating = (userVote !== null && userVote !== undefined) ? userVote : 0;
 
             var card = {
                 vote_average: displayRating,
@@ -879,8 +837,10 @@
     }
 
     // Стилизация плашки оценки в фирменные цвета Кинопоиска (зеленый >=7, серый 5-6, красный <5)
+    // Красим ТОЛЬКО личную оценку пользователя (data.user_vote). Если фильм просто просмотрен без оценки - не красим!
     function applyKpVoteBadge(rootElem, data) {
-        var voteVal = (data.user_vote !== undefined && data.user_vote !== null) ? parseFloat(data.user_vote) : parseFloat(data.vote_average || 0);
+        if (data.user_vote === undefined || data.user_vote === null || data.user_vote <= 0) return;
+        var voteVal = parseFloat(data.user_vote);
         if (!voteVal || voteVal <= 0) return;
 
         var colorClass = voteVal >= 7 ? 'card--vote-green' : (voteVal >= 5 ? 'card--vote-grey' : 'card--vote-red');
