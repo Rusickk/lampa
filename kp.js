@@ -416,9 +416,19 @@
     // БЛОК 4: ЗАКЛАДКИ КИНОПОИСКА («БУДУ СМОТРЕТЬ»)
     // =========================================================================
 
-    // Загрузка фильмов из списка «Буду смотреть»
-    function loadWatchlist(token, onSuccess, onError) {
-        var workerUrl = scriptUrl + '?method=getWatchlist&oauth=' + encodeURIComponent(token);
+    // Загрузка фильмов из списка «Буду смотреть» (с поддержкой пагинации по страницам)
+    function loadWatchlist(token, page, onSuccess, onError) {
+        if (typeof page === 'function') {
+            onError = onSuccess;
+            onSuccess = page;
+            page = 1;
+        }
+        page = page || 1;
+        var limit = 50;
+        var offset = (page - 1) * limit;
+        var workerUrl = scriptUrl + '?method=getWatchlist&oauth=' + encodeURIComponent(token) +
+            '&offset=' + offset +
+            '&limit=' + limit;
 
         network.silent(workerUrl, function (data) {
             var items = parseWatchlistResponse(data);
@@ -515,6 +525,7 @@
 
         return {
             total: total,
+            total_pages: Math.ceil(total / 50) || 1,
             items: cards
         };
     }
@@ -753,7 +764,7 @@
         return comp;
     }
 
-    // Компонент полного просмотра всех закладок (сеткой)
+    // Компонент полного просмотра всех закладок (сеткой) с бесконечной пагинацией
     function KpBookmarksFullComponent(object) {
         var comp = new Lampa.InteractionCategory(object);
 
@@ -766,7 +777,7 @@
 
             comp.activity.loader(true);
 
-            loadWatchlist(token, function (data) {
+            loadWatchlist(token, object.page || 1, function (data) {
                 comp.activity.loader(false);
 
                 if (!data || !data.items || data.items.length === 0) {
@@ -776,8 +787,8 @@
 
                 comp.build({
                     secuses: true,
-                    page: 1,
-                    total_pages: 1,
+                    page: object.page || 1,
+                    total_pages: data.total_pages || 1,
                     results: data.items
                 });
             }, function () {
@@ -793,7 +804,21 @@
         };
 
         comp.nextPageReuest = function (obj, resolve, reject) {
-            reject();
+            var token = getAccountToken();
+            if (!token) return reject();
+
+            loadWatchlist(token, obj.page, function (data) {
+                if (data && data.items && data.items.length > 0) {
+                    resolve({
+                        results: data.items,
+                        total_pages: data.total_pages
+                    });
+                } else {
+                    reject();
+                }
+            }, function () {
+                reject();
+            });
         };
 
         return comp;
