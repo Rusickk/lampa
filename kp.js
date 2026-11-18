@@ -138,20 +138,22 @@
             if (avatarImg.length) avatarImg.hide();
         }
 
-        item.css({
-            display: 'flex',
-            'align-items': 'center'
-        });
-
         var nameElem = item.find('.settings-param__name');
         var descrElem = item.find('.settings-param__descr');
 
         if (token) {
+            item.css({
+                display: 'flex',
+                'align-items': 'center'
+            });
             nameElem.text(email || 'Аккаунт подключен');
-            descrElem.text('Вы вошли в аккаунт Яндекса');
+            descrElem.text('').hide();
         } else {
+            item.css({
+                display: 'block'
+            });
             nameElem.text('Авторизация в Яндексе');
-            descrElem.text('Нажмите для входа по коду');
+            descrElem.text('Нажмите для входа по коду').show();
         }
     }
 
@@ -177,7 +179,7 @@
         param: { type: 'button', name: 'kp_smart_auth' },
         field: {
             name: getAccountToken() ? (getAccountEmail() || 'Аккаунт подключен') : 'Авторизация в Яндексе',
-            description: getAccountToken() ? 'Вы вошли в аккаунт' : 'Нажмите для входа по коду'
+            description: getAccountToken() ? '' : 'Нажмите для входа по коду'
         },
         onRender: function (item) {
             renderAuthItem(item);
