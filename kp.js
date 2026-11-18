@@ -13,6 +13,7 @@
 
     // Иконки SVG
     var kpLogo = '<svg viewBox="0 0 215 215" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path fill="currentColor" d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z" fill="currentColor"/></svg>';
+    var kpSettingsIcon = '<svg viewBox="0 0 215 215" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill="white" d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path fill="white" d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path fill="white" d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z"/></svg>';
     var buttonRatingIcon = '<svg class="button--kinopoisk_rating_icon" width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.6162 7.10981L15.8464 7.55198L16.3381 7.63428L22.2841 8.62965C22.8678 8.72736 23.0999 9.44167 22.6851 9.86381L18.4598 14.1641L18.1104 14.5196L18.184 15.0127L19.0748 20.9752C19.1622 21.5606 18.5546 22.002 18.025 21.738L12.6295 19.0483L12.1833 18.8259L11.7372 19.0483L6.34171 21.738C5.81206 22.002 5.20443 21.5606 5.29187 20.9752L6.18264 15.0127L6.25629 14.5196L5.9069 14.1641L1.68155 9.86381C1.26677 9.44167 1.49886 8.72736 2.08255 8.62965L8.02855 7.63428L8.52022 7.55198L8.75043 7.10981L11.5345 1.76241C11.8078 1.23748 12.5589 1.23748 12.8322 1.76241L15.6162 7.10981Z" stroke="currentColor" stroke-width="2.2"></path></svg>';
     var buttonTrailersIcon = '<svg class="button--kinopoisk_trailers_icon" width="239" height="239" viewBox="0 0 239 239" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xml:space="preserve"><path fill="currentColor" d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path fill="currentColor" d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z" fill="currentColor"/></svg>';
 
@@ -37,27 +38,25 @@
         Lampa.Storage.set('kinopoisk_refresh_token', '');
     }
 
-    // Современные компактные всплывающие уведомления сверху (Lampa.Bell) с иконкой Кинопоиска
+    // Современные компактные всплывающие уведомления сверху (Lampa.Bell) без звука
     function showNotify(text, time) {
         if (window.Lampa && Lampa.Bell && Lampa.Bell.push) {
-            Lampa.Bell.push({
-                text: text,
-                icon: kpLogo,
-                time: time || 2500
-            });
-        } else if (window.Lampa && Lampa.Noty && showNotify) {
-            showNotify(text);
-        }
-    }
-
-    // Современные компактные всплывающие уведомления сверху (Lampa.Bell) с иконкой Кинопоиска
-    function showNotify(text, time) {
-        if (window.Lampa && Lampa.Bell && Lampa.Bell.push) {
-            Lampa.Bell.push({
-                text: text,
-                icon: kpLogo,
-                time: time || 2500
-            });
+            var origPlay = (Lampa.Sound && Lampa.Sound.play) ? Lampa.Sound.play : null;
+            if (origPlay) {
+                Lampa.Sound.play = function (name) {
+                    if (name === 'bell') return;
+                    return origPlay.apply(this, arguments);
+                };
+            }
+            try {
+                Lampa.Bell.push({
+                    text: text,
+                    icon: kpLogo,
+                    time: time || 2500
+                });
+            } finally {
+                if (origPlay) Lampa.Sound.play = origPlay;
+            }
         } else if (window.Lampa && Lampa.Noty && Lampa.Noty.show) {
             Lampa.Noty.show(text);
         }
@@ -70,7 +69,7 @@
     if (!window.lampa_settings.kinopoisk) {
         Lampa.SettingsApi.addComponent({
             component: 'kinopoisk',
-            icon: kpLogo,
+            icon: kpSettingsIcon,
             name: 'Кинопоиск'
         });
     }
@@ -81,21 +80,47 @@
         field: { name: 'Аккаунт' }
     });
 
-    function updateSettingsUI() {
+    // Иконка профиля Кинопоиска для настроек
+    var kpAvatarIcon = '<div class="settings-param__avatar" style="flex-shrink:0;width:2.4em;height:2.4em;margin-right:1.2em;border-radius:50%;background:#ff6600;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 0 0.8em rgba(255,102,0,0.3);">' +
+        '<svg viewBox="0 0 215 215" fill="currentColor" style="width:1.5em;height:1.5em;"><path d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z"/></svg>' +
+    '</div>';
+
+    function renderAuthItem(item) {
         var token = getAccountToken();
         var email = getAccountEmail();
+
+        if (item.find('.settings-param__avatar').length === 0) {
+            item.css({
+                display: 'flex',
+                'align-items': 'center'
+            });
+            var content = jq('<div class="settings-param__content" style="flex-grow:1;"></div>');
+            item.find('.settings-param__name, .settings-param__descr').appendTo(content);
+            item.prepend(kpAvatarIcon);
+            item.append(content);
+        }
+
+        if (token) {
+            item.find('.settings-param__name').html((email || 'Аккаунт подключен') + ' <span class="settings-param__status" style="position:static;display:inline-block;vertical-align:middle;margin-left:0.6em;background:#44bb66;width:0.6em;height:0.6em;border-radius:50%;"></span>');
+            item.find('.settings-param__descr').text('Вы вошли в аккаунт Яндекса');
+        } else {
+            item.find('.settings-param__name').text('Авторизация в Яндексе');
+            item.find('.settings-param__descr').text('Нажмите для входа по коду');
+        }
+    }
+
+    function updateSettingsUI() {
+        var token = getAccountToken();
         var $ = window.jQuery || window.$;
 
         var authParam = $('div[data-name="kp_smart_auth"]');
         var logoutParam = $('div[data-name="kp_smart_logout"]');
 
+        if (authParam.length) renderAuthItem(authParam);
+
         if (token) {
-            authParam.find('.settings-param__name').text(email || 'Аккаунт подключен');
-            authParam.find('.settings-param__descr').text('Вы вошли в аккаунт');
             logoutParam.show();
         } else {
-            authParam.find('.settings-param__name').text('Авторизация в Яндексе');
-            authParam.find('.settings-param__descr').text('Нажмите для входа по коду');
             logoutParam.hide();
         }
     }
@@ -109,15 +134,7 @@
             description: getAccountToken() ? 'Вы вошли в аккаунт' : 'Нажмите для входа по коду'
         },
         onRender: function (item) {
-            var token = getAccountToken();
-            var email = getAccountEmail();
-            if (token) {
-                item.find('.settings-param__name').text(email || 'Аккаунт подключен');
-                item.find('.settings-param__descr').text('Вы вошли в аккаунт');
-            } else {
-                item.find('.settings-param__name').text('Авторизация в Яндексе');
-                item.find('.settings-param__descr').text('Нажмите для входа по коду');
-            }
+            renderAuthItem(item);
         },
         onChange: function () {
             var token = getAccountToken();
@@ -144,6 +161,14 @@
             var token = getAccountToken();
             if (!token) item.hide();
             else item.show();
+
+            // Подпись автора внизу страницы настроек
+            setTimeout(function () {
+                var parent = item.parent();
+                if (parent && parent.length && parent.find('.kp-settings-author').length === 0) {
+                    parent.append('<div class="kp-settings-author" style="text-align: center; margin-top: 4.5em; padding-bottom: 2em; opacity: 0.4; font-size: 0.85em; letter-spacing: 0.05em; pointer-events: none;">Автор плагина : github.com/Rusickk</div>');
+                }
+            }, 60);
         },
         onChange: function () {
             var token = getAccountToken();
@@ -366,88 +391,16 @@
                         });
                     });
 
-                    // Главное меню Кинопоиска (2 пункта)
+                    // Главное меню Кинопоиска (Оценка + Списки сразу в одном окне)
                     function openKpMainMenu(kpId, status) {
-                        var voteTitle = status.vote ? ('Оценить (Ваша оценка: ' + status.vote + ' ★)') : 'Оценить';
+                        var voteTitle = status.vote ? ('Оценка: ' + status.vote) : 'Оценить';
 
                         var items = [
                             {
                                 title: voteTitle,
                                 subtitle: 'Выставить или удалить оценку',
-                                action: 'rate'
+                                type: 'rate'
                             },
-                            {
-                                title: 'Добавить в список',
-                                subtitle: 'Буду смотреть, Просмотрено',
-                                action: 'lists'
-                            }
-                        ];
-
-                        Lampa.Select.show({
-                            title: 'Кинопоиск',
-                            items: items,
-                            onSelect: function (a) {
-                                if (a.action === 'rate') {
-                                    openRatingMenu(kpId, status);
-                                } else if (a.action === 'lists') {
-                                    openListsMenu(kpId, status);
-                                }
-                            },
-                            onBack: function () {
-                                Lampa.Controller.toggle('full_start');
-                            }
-                        });
-                    }
-
-                    // Подменю 1: Оценить (окно с 1..10 и Удалить)
-                    function openRatingMenu(kpId, status) {
-                        var rate = status.vote || 0;
-                        var items = [];
-                        for (var i = 10; i >= 1; i--) {
-                            var title = String(i);
-                            if (rate === i) title += ' (Ваша оценка)';
-                            items.push({ title: title, value: i });
-                        }
-                        if (rate > 0) items.push({ title: 'Удалить оценку', value: 0 });
-
-                        Lampa.Select.show({
-                            title: 'Оценка Кинопоиска',
-                            items: items,
-                            onSelect: function (a) {
-                                if (a.value === 0) {
-                                    showNotify('Удаляем оценку...');
-                                    network.silent(scriptUrl + '?method=removeVote&movie=' + kpId + '&oauth=' + token, function (res) {
-                                        if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.remove && res.data.movie.vote.remove.status === 'SUCCESS') {
-                                            status.vote = 0;
-                                            showNotify('Оценка удалена');
-                                        } else {
-                                            var err = (res && res.errors && res.errors[0]) ? res.errors[0].message : 'Ошибка Кинопоиска!';
-                                            showNotify('Ошибка: ' + err);
-                                        }
-                                    });
-                                } else {
-                                    showNotify('Ставим оценку ' + a.value + '...');
-                                    network.silent(scriptUrl + '?method=setVote&movie=' + kpId + '&rate=' + a.value + '&oauth=' + token, function (res) {
-                                        if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.set && res.data.movie.vote.set.status === 'SUCCESS') {
-                                            status.vote = a.value;
-                                            showNotify('Оценка ' + a.value + ' сохранена!');
-                                        } else {
-                                            var errVote = (res && res.errors && res.errors[0]) ? res.errors[0].message : 'Отклонено сервером!';
-                                            showNotify('Ошибка: ' + errVote);
-                                        }
-                                    });
-                                }
-                                Lampa.Controller.toggle('full_start');
-                            },
-                            onBack: function () {
-                                openKpMainMenu(kpId, status);
-                            }
-                        });
-                    }
-
-                    // Подменю 2: Добавить в список (дизайн Избранного с чекбоксами)
-                    function openListsMenu(kpId, status) {
-                        var listItems = [
                             {
                                 title: 'Буду смотреть',
                                 type: 'planned',
@@ -463,8 +416,13 @@
                         ];
 
                         Lampa.Select.show({
-                            title: 'Добавить в список',
-                            items: listItems,
+                            title: 'Кинопоиск',
+                            items: items,
+                            onSelect: function (a) {
+                                if (a.type === 'rate') {
+                                    openRatingMenu(kpId, status);
+                                }
+                            },
                             onCheck: function (a) {
                                 if (a.type === 'planned') {
                                     if (a.checked) {
@@ -526,6 +484,53 @@
                                             showNotify('Ошибка соединения');
                                         });
                                     }
+                                }
+                            },
+                            onBack: function () {
+                                Lampa.Controller.toggle('full_start');
+                            }
+                        });
+                    }
+
+                    // Окно оценки (1..10 и Удалить)
+                    function openRatingMenu(kpId, status) {
+                        var rate = status.vote || 0;
+                        var items = [];
+                        for (var i = 10; i >= 1; i--) {
+                            var title = String(i);
+                            if (rate === i) title += ' (Ваша оценка)';
+                            items.push({ title: title, value: i });
+                        }
+                        if (rate > 0) items.push({ title: 'Удалить оценку', value: 0 });
+
+                        Lampa.Select.show({
+                            title: 'Оценка Кинопоиска',
+                            items: items,
+                            onSelect: function (a) {
+                                if (a.value === 0) {
+                                    showNotify('Удаляем оценку...');
+                                    network.silent(scriptUrl + '?method=removeVote&movie=' + kpId + '&oauth=' + token, function (res) {
+                                        if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.remove && res.data.movie.vote.remove.status === 'SUCCESS') {
+                                            status.vote = 0;
+                                            showNotify('Оценка удалена');
+                                            openKpMainMenu(kpId, status);
+                                        } else {
+                                            var err = (res && res.errors && res.errors[0]) ? res.errors[0].message : 'Ошибка Кинопоиска!';
+                                            showNotify('Ошибка: ' + err);
+                                        }
+                                    });
+                                } else {
+                                    showNotify('Ставим оценку ' + a.value + '...');
+                                    network.silent(scriptUrl + '?method=setVote&movie=' + kpId + '&rate=' + a.value + '&oauth=' + token, function (res) {
+                                        if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.set && res.data.movie.vote.set.status === 'SUCCESS') {
+                                            status.vote = a.value;
+                                            showNotify('Оценка ' + a.value + ' сохранена!');
+                                            openKpMainMenu(kpId, status);
+                                        } else {
+                                            var errVote = (res && res.errors && res.errors[0]) ? res.errors[0].message : 'Отклонено сервером!';
+                                            showNotify('Ошибка: ' + errVote);
+                                        }
+                                    });
                                 }
                             },
                             onBack: function () {
