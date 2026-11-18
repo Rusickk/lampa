@@ -239,23 +239,6 @@
         });
     }
 
-    // Стили для идеального выравнивания карточек и годов в сетке
-    var style = document.createElement('style');
-    style.innerHTML =
-        '.category-full .card__title {' +
-            'height: 2.6em !important;' +
-            'min-height: 2.6em !important;' +
-            '-webkit-line-clamp: 2 !important;' +
-            'line-clamp: 2 !important;' +
-        '}' +
-        '.category-full .card__age {' +
-            'margin-top: 0.3em !important;' +
-        '}' +
-        '.category-full {' +
-            'padding-top: 1em !important;' +
-        '}';
-    document.head.appendChild(style);
-
     // =========================================================================
     // БЛОК 3: КАРТОЧКА ФИЛЬМА («ОЦЕНКИ КП» И «ТРЕЙЛЕРЫ КП»)
     // =========================================================================
@@ -264,10 +247,10 @@
         if (e.type !== 'complite') return;
 
         var checkTimer = setInterval(function () {
-            // Ищем именно основную панель кнопок карточки (не popup 'Смотреть')
-            var target = jq('.full-start-new__buttons, .full-start__buttons').first();
+            var mainTarget = jq('.full-start-new__buttons, .full-start__buttons').first();
+            var watchContainer = jq('.buttons--container');
 
-            if (target.length > 0) {
+            if (mainTarget.length > 0) {
                 clearInterval(checkTimer);
 
                 var movie = e.data.movie || e.data;
@@ -276,12 +259,12 @@
                 var token = getAccountToken();
 
                 // -------------------------------------------------------------
-                // 3.1. Кнопка «Оценки КП»
+                // 3.1. Кнопка «Оценки КП» (в основном ряду карточки)
                 // -------------------------------------------------------------
-                if (target.find('.button--kinopoisk_rating').length === 0) {
+                if (mainTarget.find('.button--kinopoisk_rating').length === 0) {
                     var btnRatingTitle = token ? 'Оценки КП' : 'Войти для оценки';
                     var btnRating = jq('<div class="full-start__button selector button--kinopoisk_rating" style="position: relative;">' + buttonRatingIcon + '<span>' + btnRatingTitle + '</span></div>');
-                    target.append(btnRating);
+                    mainTarget.append(btnRating);
 
                     if (!token) {
                         btnRating.on('hover:enter', function () {
@@ -340,7 +323,6 @@
                         }
 
                         btnRating.on('hover:enter', function () {
-                            Lampa.Noty.show('Поиск...');
                             if (movie.kinopoisk_id) {
                                 openRatingMenu(movie.kinopoisk_id);
                             } else {
@@ -364,15 +346,14 @@
                 }
 
                 // -------------------------------------------------------------
-                // 3.2. Кнопка «Трейлеры КП»
+                // 3.2. Кнопка «Трейлеры КП» (в меню «Смотреть»)
                 // -------------------------------------------------------------
-                if (target.find('.button--kinopoisk_trailers').length === 0) {
+                var trailerTarget = watchContainer.length > 0 ? watchContainer : mainTarget;
+                if (trailerTarget.find('.button--kinopoisk_trailers').length === 0) {
                     var btnTrailer = jq('<div class="full-start__button selector button--kinopoisk_trailers">' + buttonTrailersIcon + '<span>Трейлеры КП</span></div>');
-                    target.append(btnTrailer);
+                    trailerTarget.append(btnTrailer);
 
                     btnTrailer.on('hover:enter', function () {
-                        Lampa.Noty.show('Поиск трейлеров КП');
-
                         var requestUrl = scriptUrl + '?method=getTrailers';
                         if (movie.kinopoisk_id) {
                             requestUrl += '&kp_id=' + movie.kinopoisk_id;
@@ -510,7 +491,9 @@
                 id: tmdbId || m.id,
                 tmdb_id: tmdbId,
                 tmdb_ready: !!tmdbId,
-                source: 'tmdb'
+                source: 'tmdb',
+                year: year,
+                release_year: '0000'
             };
 
             // ВАЖНО: Если poster_path содержит полный URL (начинается с http),
@@ -523,16 +506,15 @@
 
             // В Лампе наличие свойства `name` трактуется как сериал (медиа = 'tv').
             // Для фильмов должно быть только `title`, иначе Лампа открывает сериал и выдает 404!
+            // Не передаем release_date / first_air_date, чтобы Лампа удаляла блок года (.card__age) со стоковых карточек!
             if (isTv) {
                 card.name = localizedTitle;
                 card.original_name = originalTitle;
-                card.first_air_date = year ? (year + '-01-01') : '';
                 card.type = 'tv';
                 card.method = 'tv';
             } else {
                 card.title = localizedTitle;
                 card.original_title = originalTitle;
-                card.release_date = year ? (year + '-01-01') : '';
                 card.type = 'movie';
                 card.method = 'movie';
             }
