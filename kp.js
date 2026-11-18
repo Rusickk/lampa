@@ -492,8 +492,7 @@
                 tmdb_id: tmdbId,
                 tmdb_ready: !!tmdbId,
                 source: 'tmdb',
-                year: year,
-                release_year: '0000'
+                year: year
             };
 
             // ВАЖНО: Если poster_path содержит полный URL (начинается с http),
@@ -506,15 +505,17 @@
 
             // В Лампе наличие свойства `name` трактуется как сериал (медиа = 'tv').
             // Для фильмов должно быть только `title`, иначе Лампа открывает сериал и выдает 404!
-            // Не передаем release_date / first_air_date, чтобы Лампа удаляла блок года (.card__age) со стоковых карточек!
+            // Дата выпуска release_date / first_air_date восстанавливает стандартный год под названием!
             if (isTv) {
                 card.name = localizedTitle;
                 card.original_name = originalTitle;
+                card.first_air_date = year ? (year + '-01-01') : '';
                 card.type = 'tv';
                 card.method = 'tv';
             } else {
                 card.title = localizedTitle;
                 card.original_title = originalTitle;
+                card.release_date = year ? (year + '-01-01') : '';
                 card.type = 'movie';
                 card.method = 'movie';
             }
@@ -763,60 +764,128 @@
 
     // Компонент полного просмотра всех закладок (сеткой) с бесконечной пагинацией
     function KpBookmarksFullComponent(object) {
-        var comp = new Lampa.InteractionCategory(object);
+        var comp;
+        var hasMaker = typeof Lampa.Maker !== 'undefined' && typeof Lampa.Maker.make === 'function';
 
-        comp.create = function () {
-            var token = getAccountToken();
-            if (!token) {
-                comp.empty();
-                return;
-            }
+        if (hasMaker) {
+            // Современный штатный компонент Lampa (сетка 6 колонок, плавная пагинация, стандартные карточки)
+            comp = Lampa.Maker.make('Category', object, function (module) {
+                return module.toggle(Lampa.Maker.module('Category').MASK.base, 'Pagination');
+            });
 
-            comp.activity.loader(true);
+            comp.use({
+                onCreate: function () {
+                    var token = getAccountToken();
+                    if (!token) {
+                        comp.empty();
+                        return;
+                    }
 
-            loadWatchlist(token, object.page || 1, function (data) {
-                comp.activity.loader(false);
+                    loadWatchlist(token, object.page || 1, function (data) {
+                        if (!data || !data.items || data.items.length === 0) {
+                            comp.empty();
+                            return;
+                        }
 
-                if (!data || !data.items || data.items.length === 0) {
+                        comp.build({
+                            secuses: true,
+                            page: object.page || 1,
+                            total_pages: data.total_pages || 1,
+                            results: data.items
+                        });
+                    }, function () {
+                        comp.empty();
+                    });
+                },
+                onNext: function (resolve, reject) {
+                    var token = getAccountToken();
+                    if (!token) return reject();
+
+                    loadWatchlist(token, object.page, function (data) {
+                        if (data && data.items && data.items.length > 0) {
+                            resolve({
+                                results: data.items,
+                                total_pages: data.total_pages
+                            });
+                        } else {
+                            reject();
+                        }
+                    }, function () {
+                        reject();
+                    });
+                },
+                onInstance: function (item, data) {
+                    item.use({
+                        onEnter: function () {
+                            openMovieCard(data);
+                        },
+                        onFocus: function () {
+                            if (Lampa.Background && Lampa.Utils) {
+                                Lampa.Background.change(Lampa.Utils.cardImgBackground(data));
+                            }
+                        }
+                    });
+                }
+            });
+        } else {
+            // Fallback для устаревших версий Lampa
+            comp = new Lampa.InteractionCategory(object);
+
+            comp.create = function () {
+                var token = getAccountToken();
+                if (!token) {
                     comp.empty();
                     return;
                 }
 
-                comp.build({
-                    secuses: true,
-                    page: object.page || 1,
-                    total_pages: data.total_pages || 1,
-                    results: data.items
-                });
-            }, function () {
-                comp.activity.loader(false);
-                comp.empty();
-            });
-        };
+                comp.activity.loader(true);
 
-        comp.cardRender = function (obj, element, card) {
-            card.onEnter = function () {
-                openMovieCard(element);
-            };
-        };
+                loadWatchlist(token, object.page || 1, function (data) {
+                    comp.activity.loader(false);
 
-        comp.nextPageReuest = function (obj, resolve, reject) {
-            var token = getAccountToken();
-            if (!token) return reject();
+                    if (!data || !data.items || data.items.length === 0) {
+                        comp.empty();
+                        return;
+                    }
 
-            loadWatchlist(token, obj.page, function (data) {
-                if (data && data.items && data.items.length > 0) {
-                    resolve({
-                        results: data.items,
-                        total_pages: data.total_pages
+                    comp.build({
+                        secuses: true,
+                        page: object.page || 1,
+                        total_pages: data.total_pages || 1,
+                        results: data.items
                     });
-                } else {
+
+                    comp.render().find('.category-full').addClass('mapping--grid cols--6');
+                }, function () {
+                    comp.activity.loader(false);
+                    comp.empty();
+                });
+            };
+
+            comp.cardRender = function (obj, element, card) {
+                card.onEnter = function () {
+                    openMovieCard(element);
+                };
+            };
+
+            comp.nextPageReuest = function (obj, resolve, reject) {
+                var token = getAccountToken();
+                if (!token) return reject();
+
+                loadWatchlist(token, obj.page, function (data) {
+                    if (data && data.items && data.items.length > 0) {
+                        resolve({
+                            results: data.items,
+                            total_pages: data.total_pages
+                        });
+                    } else {
+                        reject();
+                    }
+                }, function () {
                     reject();
-                }
-            }, function () {
-                reject();
-            });
-        };
+                });
+            };
+        }
 
         return comp;
     }
@@ -828,6 +897,20 @@
     // Регистрация компонентов активности
     Lampa.Component.add('kp_bookmarks', KpBookmarksComponent);
     Lampa.Component.add('kp_bookmarks_full', KpBookmarksFullComponent);
+
+    // Добавление стилей сетки для идеального выравнивания карточек
+    var gridStyle = document.createElement('style');
+    gridStyle.innerHTML =
+        '.category-full.mapping--grid.cols--6 > .card {' +
+            'width: 16.6666667% !important;' +
+            'margin-left: 0 !important;' +
+            'padding: 0 0.5em 1em 0.5em !important;' +
+            'box-sizing: border-box !important;' +
+        '}' +
+        '.category-full.mapping--grid.cols--6 {' +
+            'padding: 0 1em !important;' +
+        '}';
+    document.head.appendChild(gridStyle);
 
     // Добавление пункта «Закладки КП» в главное боковое меню Lampa
     function addSidebarMenu() {
