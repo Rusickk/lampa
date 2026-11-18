@@ -239,6 +239,23 @@
         });
     }
 
+    // Стили для идеального выравнивания карточек и годов в сетке
+    var style = document.createElement('style');
+    style.innerHTML =
+        '.category-full .card__title {' +
+            'height: 2.6em !important;' +
+            'min-height: 2.6em !important;' +
+            '-webkit-line-clamp: 2 !important;' +
+            'line-clamp: 2 !important;' +
+        '}' +
+        '.category-full .card__age {' +
+            'margin-top: 0.3em !important;' +
+        '}' +
+        '.category-full {' +
+            'padding-top: 1em !important;' +
+        '}';
+    document.head.appendChild(style);
+
     // =========================================================================
     // БЛОК 3: КАРТОЧКА ФИЛЬМА («ОЦЕНКИ КП» И «ТРЕЙЛЕРЫ КП»)
     // =========================================================================
@@ -247,8 +264,8 @@
         if (e.type !== 'complite') return;
 
         var checkTimer = setInterval(function () {
-            var container = jq('.buttons--container');
-            var target = container.length > 0 ? container : jq('.full-start-new__buttons, .full-start__buttons');
+            // Ищем именно основную панель кнопок карточки (не popup 'Смотреть')
+            var target = jq('.full-start-new__buttons, .full-start__buttons').first();
 
             if (target.length > 0) {
                 clearInterval(checkTimer);
@@ -613,8 +630,6 @@
             });
             return;
         }
-
-        Lampa.Noty.show('Поиск фильма в каталоге...');
 
         var queryTitle = movieCard.title || movieCard.name || movieCard.original_title || '';
         var queryYear = movieCard.release_date ? movieCard.release_date.slice(0, 4) : (movieCard.first_air_date ? movieCard.first_air_date.slice(0, 4) : '');
