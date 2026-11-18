@@ -1087,7 +1087,7 @@
             return;
         }
 
-        var cacheKey = 'kp_tmdb_' + movieCard.kinopoisk_id;
+        var cacheKey = 'kp_tmdb_v4_' + movieCard.kinopoisk_id;
         var cachedTmdbId = Lampa.Storage.get(cacheKey, '');
 
         if (cachedTmdbId) {
@@ -1111,8 +1111,8 @@
         var queryYear = movieCard.release_date ? movieCard.release_date.slice(0, 4) : (movieCard.first_air_date ? movieCard.first_air_date.slice(0, 4) : (movieCard.year ? String(movieCard.year).slice(0, 4) : ''));
         var queryType = (movieCard.type === 'tv' || movieCard.method === 'tv') ? 'tv' : 'movie';
 
-        // Поиск через kinoapi.lampac.dev в нашем воркере (по KP ID, названию и оригинальному названию)
-        var resolveUrl = scriptUrl + '?method=resolveTmdb&kp_id=' + encodeURIComponent(movieCard.kinopoisk_id || '') +
+        // Поиск через воркер (прямой поиск в TMDB API + kinoapi fallback)
+        var resolveUrl = scriptUrl + '?method=resolveTmdb&v=4&kp_id=' + encodeURIComponent(movieCard.kinopoisk_id || '') +
             '&title=' + encodeURIComponent(queryTitle) +
             '&orig_title=' + encodeURIComponent(origTitle) +
             '&year=' + encodeURIComponent(queryYear) +
@@ -1121,6 +1121,9 @@
         network.silent(resolveUrl, function (res) {
             if (res && res.tmdb) {
                 Lampa.Storage.set(cacheKey, res.tmdb);
+                if (movieCard.kinopoisk_id) {
+                    Lampa.Storage.set('kp_id_' + res.tmdb, movieCard.kinopoisk_id);
+                }
                 movieCard.id = res.tmdb;
                 movieCard.tmdb_id = res.tmdb;
                 movieCard.tmdb_ready = true;
