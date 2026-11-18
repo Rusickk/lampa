@@ -37,6 +37,32 @@
         Lampa.Storage.set('kinopoisk_refresh_token', '');
     }
 
+    // Современные компактные всплывающие уведомления сверху (Lampa.Bell) с иконкой Кинопоиска
+    function showNotify(text, time) {
+        if (window.Lampa && Lampa.Bell && Lampa.Bell.push) {
+            Lampa.Bell.push({
+                text: text,
+                icon: kpLogo,
+                time: time || 2500
+            });
+        } else if (window.Lampa && Lampa.Noty && showNotify) {
+            showNotify(text);
+        }
+    }
+
+    // Современные компактные всплывающие уведомления сверху (Lampa.Bell) с иконкой Кинопоиска
+    function showNotify(text, time) {
+        if (window.Lampa && Lampa.Bell && Lampa.Bell.push) {
+            Lampa.Bell.push({
+                text: text,
+                icon: kpLogo,
+                time: time || 2500
+            });
+        } else if (window.Lampa && Lampa.Noty && Lampa.Noty.show) {
+            Lampa.Noty.show(text);
+        }
+    }
+
     // =========================================================================
     // БЛОК 2: АВТОРИЗАЦИЯ И МЕНЮ НАСТРОЕК
     // =========================================================================
@@ -98,41 +124,11 @@
             var email = getAccountEmail();
 
             if (token) {
-                Lampa.Noty.show('Вы уже вошли как ' + (email || 'пользователь'));
+                showNotify('Вы уже вошли как ' + (email || 'пользователь'));
             } else {
                 Lampa.Controller.toContent();
                 startAuth();
             }
-        }
-    });
-
-    // Настройка логина (nickname) на Кинопоиске для вкладки «Оценки и просмотры»
-    Lampa.SettingsApi.addParam({
-        component: 'kinopoisk',
-        param: {
-            name: 'kp_social_alias',
-            type: 'button'
-        },
-        field: {
-            name: 'Логин на Кинопоиске',
-            description: getSocialAlias()
-        },
-        onRender: function (item) {
-            item.find('.settings-param__descr').text(getSocialAlias());
-        },
-        onChange: function () {
-            Lampa.Input.edit({
-                title: 'Логин на Кинопоиске',
-                value: getSocialAlias(),
-                free: true,
-                nosave: true
-            }, function (new_val) {
-                if (new_val && new_val.trim()) {
-                    Lampa.Storage.set('kp_social_alias', new_val.trim());
-                    var elem = jq('div[data-name="kp_social_alias"]');
-                    elem.find('.settings-param__descr').text(new_val.trim());
-                }
-            });
         }
     });
 
@@ -163,7 +159,7 @@
                     if (a.confirm) {
                         clearAccount();
                         updateSettingsUI();
-                        Lampa.Noty.show('Вы вышли из аккаунта');
+                        showNotify('Вы вышли из аккаунта');
                     }
                     Lampa.Controller.toggle('settings_component');
                 },
@@ -246,13 +242,13 @@
                                 updateSettingsUI();
                                 Lampa.Modal.close();
                                 Lampa.Controller.toggle('settings_component');
-                                Lampa.Noty.show('Вы успешно вошли в аккаунт!');
+                                showNotify('Вы успешно вошли в аккаунт!');
                             }, function () {
                                 Lampa.Storage.set('kp_smart_email', 'Аккаунт подключен');
                                 updateSettingsUI();
                                 Lampa.Modal.close();
                                 Lampa.Controller.toggle('settings_component');
-                                Lampa.Noty.show('Вы успешно вошли в аккаунт!');
+                                showNotify('Вы успешно вошли в аккаунт!');
                             }, false, { headers: { 'Authorization': 'OAuth ' + tokenData.access_token } });
                         }
                     }, function () {
@@ -266,7 +262,7 @@
                 }, intervalMs);
             }
         }, function () {
-            Lampa.Noty.show('Ошибка получения кода');
+            showNotify('Ошибка получения кода');
         }, {
             client_id: client_id,
             device_id: device_id
@@ -342,10 +338,10 @@
                                     movie.kinopoisk_id = data.kinopoiskId;
                                     cb(data.kinopoiskId);
                                 } else {
-                                    Lampa.Noty.show('Не удалось найти фильм на Кинопоиске');
+                                    showNotify('Не удалось найти фильм на Кинопоиске');
                                 }
                             }, function () {
-                                Lampa.Noty.show('Ошибка поиска фильма на Кинопоиске');
+                                showNotify('Ошибка поиска фильма на Кинопоиске');
                             });
                         }
                     }
@@ -359,7 +355,7 @@
 
                     btnKp.on('hover:enter', function () {
                         if (!token) {
-                            Lampa.Noty.show('Перейдите в Настройки -> Кинопоиск и авторизуйтесь');
+                            showNotify('Перейдите в Настройки -> Кинопоиск и авторизуйтесь');
                             return;
                         }
 
@@ -419,25 +415,25 @@
                             items: items,
                             onSelect: function (a) {
                                 if (a.value === 0) {
-                                    Lampa.Noty.show('Удаляем оценку...');
+                                    showNotify('Удаляем оценку...');
                                     network.silent(scriptUrl + '?method=removeVote&movie=' + kpId + '&oauth=' + token, function (res) {
                                         if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.remove && res.data.movie.vote.remove.status === 'SUCCESS') {
                                             status.vote = 0;
-                                            Lampa.Noty.show('Оценка удалена');
+                                            showNotify('Оценка удалена');
                                         } else {
                                             var err = (res && res.errors && res.errors[0]) ? res.errors[0].message : 'Ошибка Кинопоиска!';
-                                            Lampa.Noty.show('Ошибка: ' + err);
+                                            showNotify('Ошибка: ' + err);
                                         }
                                     });
                                 } else {
-                                    Lampa.Noty.show('Ставим оценку ' + a.value + '...');
+                                    showNotify('Ставим оценку ' + a.value + '...');
                                     network.silent(scriptUrl + '?method=setVote&movie=' + kpId + '&rate=' + a.value + '&oauth=' + token, function (res) {
                                         if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.set && res.data.movie.vote.set.status === 'SUCCESS') {
                                             status.vote = a.value;
-                                            Lampa.Noty.show('Оценка ' + a.value + ' сохранена!');
+                                            showNotify('Оценка ' + a.value + ' сохранена!');
                                         } else {
                                             var errVote = (res && res.errors && res.errors[0]) ? res.errors[0].message : 'Отклонено сервером!';
-                                            Lampa.Noty.show('Ошибка: ' + errVote);
+                                            showNotify('Ошибка: ' + errVote);
                                         }
                                     });
                                 }
@@ -472,62 +468,62 @@
                             onCheck: function (a) {
                                 if (a.type === 'planned') {
                                     if (a.checked) {
-                                        Lampa.Noty.show('Добавляю в «Буду смотреть»...');
+                                        showNotify('Добавляю в «Буду смотреть»...');
                                         network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=true&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.plannedToWatch = true;
-                                                Lampa.Noty.show('Добавлено в «Буду смотреть»');
+                                                showNotify('Добавлено в «Буду смотреть»');
                                             } else {
                                                 a.checked = false;
-                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось добавить'));
+                                                showNotify('Ошибка: ' + (res && res.error ? res.error : 'не удалось добавить'));
                                             }
                                         }, function () {
                                             a.checked = false;
-                                            Lampa.Noty.show('Ошибка соединения');
+                                            showNotify('Ошибка соединения');
                                         });
                                     } else {
-                                        Lampa.Noty.show('Удаляю из «Буду смотреть»...');
+                                        showNotify('Удаляю из «Буду смотреть»...');
                                         network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=false&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.plannedToWatch = false;
-                                                Lampa.Noty.show('Удалено из «Буду смотреть»');
+                                                showNotify('Удалено из «Буду смотреть»');
                                             } else {
                                                 a.checked = true;
-                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
+                                                showNotify('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
                                             }
                                         }, function () {
                                             a.checked = true;
-                                            Lampa.Noty.show('Ошибка соединения');
+                                            showNotify('Ошибка соединения');
                                         });
                                     }
                                 } else if (a.type === 'watched') {
                                     if (a.checked) {
-                                        Lampa.Noty.show('Отмечаю как просмотрено...');
+                                        showNotify('Отмечаю как просмотрено...');
                                         network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=true&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.watched = true;
-                                                Lampa.Noty.show('Добавлено в просмотренные');
+                                                showNotify('Добавлено в просмотренные');
                                             } else {
                                                 a.checked = false;
-                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось отметить'));
+                                                showNotify('Ошибка: ' + (res && res.error ? res.error : 'не удалось отметить'));
                                             }
                                         }, function () {
                                             a.checked = false;
-                                            Lampa.Noty.show('Ошибка соединения');
+                                            showNotify('Ошибка соединения');
                                         });
                                     } else {
-                                        Lampa.Noty.show('Удаляю из просмотренных...');
+                                        showNotify('Удаляю из просмотренных...');
                                         network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=false&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.watched = false;
-                                                Lampa.Noty.show('Удалено из просмотренных');
+                                                showNotify('Удалено из просмотренных');
                                             } else {
                                                 a.checked = true;
-                                                Lampa.Noty.show('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
+                                                showNotify('Ошибка: ' + (res && res.error ? res.error : 'не удалось удалить'));
                                             }
                                         }, function () {
                                             a.checked = true;
-                                            Lampa.Noty.show('Ошибка соединения');
+                                            showNotify('Ошибка соединения');
                                         });
                                     }
                                 }
@@ -587,13 +583,13 @@
                                         }
                                     });
                                 } else {
-                                    Lampa.Noty.show('Трейлеры не найдены');
+                                    showNotify('Трейлеры не найдены');
                                 }
                             } else {
-                                Lampa.Noty.show('Трейлеры не найдены');
+                                showNotify('Трейлеры не найдены');
                             }
                         }, function () {
-                            Lampa.Noty.show('Ошибка соединения');
+                            showNotify('Ошибка соединения');
                         });
                     });
                 }
@@ -988,7 +984,7 @@
     function searchTmdbFallback(movieCard, cacheKey) {
         var query = movieCard.title || movieCard.name || movieCard.original_title;
         if (!query) {
-            Lampa.Noty.show('Не удалось найти фильм в TMDB');
+            showNotify('Не удалось найти фильм в TMDB');
             return;
         }
 
@@ -1014,10 +1010,10 @@
                     source: 'tmdb'
                 });
             } else {
-                Lampa.Noty.show('Фильм не найден в базе TMDB');
+                showNotify('Фильм не найден в базе TMDB');
             }
         }, function () {
-            Lampa.Noty.show('Ошибка поиска фильма в TMDB');
+            showNotify('Ошибка поиска фильма в TMDB');
         });
     }
 
@@ -1028,7 +1024,7 @@
         comp.create = function () {
             var token = getAccountToken();
             if (!token) {
-                Lampa.Noty.show('Войдите в аккаунт в Настройки -> Кинопоиск');
+                showNotify('Войдите в аккаунт в Настройки -> Кинопоиск');
                 comp.empty();
                 return;
             }
@@ -1467,7 +1463,7 @@
         menuBtn.on('hover:enter', function () {
             var token = getAccountToken();
             if (!token) {
-                Lampa.Noty.show('Авторизуйтесь в Настройки -> Кинопоиск');
+                showNotify('Авторизуйтесь в Настройки -> Кинопоиск');
                 return;
             }
 
