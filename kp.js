@@ -404,23 +404,33 @@
                     function getOrResolveKpId(cb) {
                         if (movie.kinopoisk_id) {
                             cb(movie.kinopoisk_id);
-                        } else {
-                            var reqUrl = scriptUrl + '?method=resolveId&imdb_id=' + (movie.imdb_id || '') +
-                                '&tmdb_id=' + (movie.id || '') +
-                                '&title=' + encodeURIComponent(movie.original_title || movie.title || '') +
-                                '&year=' + (movie.release_date ? movie.release_date.slice(0, 4) : '');
-
-                            network.silent(reqUrl, function (data) {
-                                if (data && data.kinopoiskId) {
-                                    movie.kinopoisk_id = data.kinopoiskId;
-                                    cb(data.kinopoiskId);
-                                } else {
-                                    showNotify('Не удалось найти фильм на Кинопоиске');
-                                }
-                            }, function () {
-                                showNotify('Ошибка поиска фильма на Кинопоиске');
-                            });
+                            return;
                         }
+
+                        var cacheKeyId = 'kp_resolved_id_' + (movie.id || movie.imdb_id || encodeURIComponent(movie.original_title || movie.title || ''));
+                        var cachedId = Lampa.Storage.get(cacheKeyId, '');
+                        if (cachedId) {
+                            movie.kinopoisk_id = cachedId;
+                            cb(cachedId);
+                            return;
+                        }
+
+                        var reqUrl = scriptUrl + '?method=resolveId&imdb_id=' + (movie.imdb_id || '') +
+                            '&tmdb_id=' + (movie.id || '') +
+                            '&title=' + encodeURIComponent(movie.original_title || movie.title || '') +
+                            '&year=' + (movie.release_date ? movie.release_date.slice(0, 4) : '');
+
+                        network.silent(reqUrl, function (data) {
+                            if (data && data.kinopoiskId) {
+                                movie.kinopoisk_id = data.kinopoiskId;
+                                Lampa.Storage.set(cacheKeyId, data.kinopoiskId);
+                                cb(data.kinopoiskId);
+                            } else {
+                                showNotify('Не удалось найти фильм на Кинопоиске');
+                            }
+                        }, function () {
+                            showNotify('Ошибка поиска фильма на Кинопоиске');
+                        });
                     }
 
                     btnKp.on('hover:enter', function () {
@@ -587,6 +597,24 @@
                     watchContainer.append(btnTrailer);
 
                     btnTrailer.on('hover:enter', function () {
+                        var cacheKeyTrailer = 'kp_trailers_' + (movie.kinopoisk_id || movie.id || '');
+                        var cachedTrailers = Lampa.Storage.get(cacheKeyTrailer, null);
+                        if (cachedTrailers && cachedTrailers.length > 0) {
+                            Lampa.Select.show({
+                                title: 'Трейлеры КП',
+                                items: cachedTrailers,
+                                onSelect: function (a) {
+                                    Lampa.Player.play(a);
+                                    Lampa.Player.playlist(cachedTrailers);
+                                    Lampa.Controller.toggle('player');
+                                },
+                                onBack: function () {
+                                    Lampa.Controller.toggle('full_start');
+                                }
+                            });
+                            return;
+                        }
+
                         var requestUrl = scriptUrl + '?method=getTrailers';
                         if (movie.kinopoisk_id) {
                             requestUrl += '&kp_id=' + movie.kinopoisk_id;
@@ -614,6 +642,7 @@
                                 }
 
                                 if (trailersList.length > 0) {
+                                    Lampa.Storage.set(cacheKeyTrailer, trailersList);
                                     Lampa.Select.show({
                                         title: 'Трейлеры КП',
                                         items: trailersList,
