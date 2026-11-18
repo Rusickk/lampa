@@ -25,6 +25,10 @@
         return Lampa.Storage.get('kp_smart_email', '') || Lampa.Storage.get('kinopoisk_email', '');
     }
 
+    function getSocialAlias() {
+        return Lampa.Storage.get('kp_social_alias', 'rusick') || 'rusick';
+    }
+
     function clearAccount() {
         Lampa.Storage.set('kp_smart_token', '');
         Lampa.Storage.set('kp_smart_email', '');
@@ -99,6 +103,20 @@
                 Lampa.Controller.toContent();
                 startAuth();
             }
+        }
+    });
+
+    // Настройка логина (nickname) на Кинопоиске для вкладки «Оценки и просмотры»
+    Lampa.SettingsApi.addParam({
+        component: 'kinopoisk',
+        param: {
+            name: 'kp_social_alias',
+            type: 'input',
+            default: 'rusick'
+        },
+        field: {
+            name: 'Логин на Кинопоиске',
+            description: 'Используется для вкладки «Оценки и просмотры»'
         }
     });
 
@@ -530,6 +548,151 @@
         };
     }
 
+    // Загрузка списка «Оценки и просмотры»
+    function loadVotedWatchlist(token, page, onSuccess, onError) {
+        if (typeof page === 'function') {
+            onSuccess = page;
+            page = 1;
+        }
+        page = page || 1;
+        var limit = 50;
+        var offset = (page - 1) * limit;
+        var alias = getSocialAlias();
+
+        var workerUrl = scriptUrl + '?method=getVotedWatchlist&oauth=' + encodeURIComponent(token) +
+            '&social_alias=' + encodeURIComponent(alias) +
+            '&offset=' + offset +
+            '&limit=' + limit;
+
+        network.silent(workerUrl, function (data) {
+            var items = parseVotedResponse(data);
+            if (items !== null) {
+                onSuccess(items);
+            } else {
+                if (onError) onError();
+            }
+        }, function () {
+            if (onError) onError();
+        });
+    }
+
+    function parseVotedResponse(data) {
+        var reactionData = data && data.data && data.data.userProfileBySocialAlias && data.data.userProfileBySocialAlias.userData && data.data.userProfileBySocialAlias.userData.movieReactions;
+        if (!reactionData) return null;
+
+        var total = reactionData.total || 0;
+        var rawItems = reactionData.items || [];
+
+        var cards = rawItems.map(function (item) {
+            var m = item.movie || {};
+            var t = item.tmdb || {};
+
+            var voteReaction = (item.reactions || []).find(function (r) {
+                return r.__typename === 'Vote' || (r.value !== undefined);
+            });
+            var userVote = voteReaction ? voteReaction.value : null;
+
+            var localizedTitle = t.title || (m.title && (m.title.russian || m.title.localized)) || (m.title && m.title.original) || '';
+            var originalTitle = (m.title && m.title.original) || '';
+
+            var year = t.year || m.productionYear || (m.releaseYears ? m.releaseYears.start : '') || '';
+            var isTv = (t.type === 'tv') || m.__typename === 'TvSeries' || m.__typename === 'TvShow' || m.__typename === 'MiniSeries' || !!m.releaseYears;
+
+            var kpPoster = '';
+            if (m.poster && m.poster.avatarsUrl) {
+                var avatars = m.poster.avatarsUrl.replace(/^\/+/, '');
+                if (avatars.indexOf('http') === 0) kpPoster = avatars;
+                else if (avatars.indexOf('//') === 0) kpPoster = 'https:' + avatars;
+                else kpPoster = 'https://' + avatars;
+
+                if (!/\.(jpg|png|webp)$/i.test(kpPoster) && !/\/\d+x\d+$/i.test(kpPoster) && !/\/orig$/i.test(kpPoster)) {
+                    kpPoster = kpPoster + '/300x450';
+                }
+            }
+
+            var finalPosterUrl = t.poster || kpPoster || '';
+            var tmdbRelativePath = '';
+            if (finalPosterUrl && finalPosterUrl.indexOf('image.tmdb.org/t/p/') !== -1) {
+                tmdbRelativePath = finalPosterUrl.replace(/^https?:\/\/image\.tmdb\.org\/t\/p\/[^/]+/, '');
+            }
+
+            var displayRating = userVote !== null ? userVote : (m.rating && m.rating.kinopoisk && m.rating.kinopoisk.value ? m.rating.kinopoisk.value : 0);
+
+            var card = {
+                vote_average: displayRating,
+                user_vote: userVote,
+                kp_rating: m.rating && m.rating.kinopoisk ? m.rating.kinopoisk.value : null,
+                img: finalPosterUrl,
+                poster: finalPosterUrl,
+                background_image: finalPosterUrl,
+                kinopoisk_id: m.id,
+                id: t.id || m.id,
+                tmdb_id: t.id,
+                tmdb_ready: !!t.id,
+                source: 'tmdb',
+                year: year
+            };
+
+            if (tmdbRelativePath) {
+                card.poster_path = tmdbRelativePath;
+            }
+
+            if (isTv) {
+                card.name = localizedTitle;
+                card.original_name = originalTitle;
+                card.first_air_date = year ? (year + '-01-01') : '';
+                card.type = 'tv';
+                card.method = 'tv';
+            } else {
+                card.title = localizedTitle;
+                card.original_title = originalTitle;
+                card.release_date = year ? (year + '-01-01') : '';
+                card.type = 'movie';
+                card.method = 'movie';
+            }
+
+            return card;
+        });
+
+        return {
+            total: total,
+            total_pages: Math.ceil(total / 50) || 1,
+            items: cards
+        };
+    }
+
+    // Стилизация плашки оценки в фирменные цвета Кинопоиска (зеленый >=7, серый 5-6, красный <5)
+    function applyKpVoteBadge(rootElem, data) {
+        var voteVal = (data.user_vote !== undefined && data.user_vote !== null) ? parseFloat(data.user_vote) : parseFloat(data.vote_average || 0);
+        if (!voteVal || voteVal <= 0) return;
+
+        var colorClass = voteVal >= 7 ? 'card--vote-green' : (voteVal >= 5 ? 'card--vote-grey' : 'card--vote-red');
+        var dom = rootElem.jquery ? rootElem[0] : rootElem;
+        if (!dom) return;
+
+        dom.classList.add(colorClass);
+        var voteElem = dom.querySelector('.card__vote');
+        if (!voteElem) {
+            voteElem = document.createElement('div');
+            voteElem.className = 'card__vote';
+            var view = dom.querySelector('.card__view');
+            if (view) view.appendChild(voteElem);
+        }
+        if (voteElem) {
+            voteElem.innerText = voteVal >= 10 ? '10' : (voteVal % 1 === 0 ? voteVal : voteVal.toFixed(1));
+        }
+    }
+
+    function makeKpCard(data, params) {
+        var card = new Lampa.Card(data, params);
+        var origCreate = card.create.bind(card);
+        card.create = function () {
+            origCreate();
+            applyKpVoteBadge(card.render(true), data);
+        };
+        return card;
+    }
+
     // Класс специальной карточки-папки «Смотреть все» (встроенный стандарт Lampa: .bookmarks-folder)
     function FolderCard(element) {
         var html;
@@ -681,7 +844,7 @@
         });
     }
 
-    // Компонент «Закладки КП»: 1 строка (папка «Смотреть все» + 10 последних фильмов)
+    // Компонент «Закладки КП»: 2 строки («Оценки и просмотры» + «Буду смотреть»)
     function KpBookmarksComponent(object) {
         var comp = new Lampa.InteractionMain(object);
 
@@ -695,57 +858,112 @@
 
             comp.activity.loader(true);
 
-            loadWatchlist(token, function (data) {
-                comp.activity.loader(false);
+            var pending = 2;
+            var votedRes = null;
+            var plannedRes = null;
 
-                if (!data || !data.items || data.items.length === 0) {
-                    Lampa.Noty.show('В списке "Буду смотреть" нет фильмов');
-                    comp.empty();
-                    return;
+            function checkDone() {
+                pending--;
+                if (pending > 0) return;
+
+                comp.activity.loader(false);
+                var lines = [];
+
+                // 1. Полоска «Оценки и просмотры» (первая полоска)
+                if (votedRes && votedRes.items && votedRes.items.length > 0) {
+                    var totalVoted = votedRes.total || votedRes.items.length;
+                    var votedCards = votedRes.items;
+                    var lastVoted10 = votedCards.slice(0, 10);
+
+                    lastVoted10.forEach(function (card) {
+                        card.cardClass = function (elem, params) {
+                            return makeKpCard(elem, params);
+                        };
+                        card.onEnter = function () {
+                            openMovieCard(card);
+                        };
+                    });
+
+                    var votedFolder = {
+                        cardClass: function (elem, params) {
+                            return new FolderCard(elem, params);
+                        },
+                        title: 'Смотреть все',
+                        total: totalVoted,
+                        results: votedCards,
+                        onEnter: function () {
+                            Lampa.Activity.push({
+                                title: 'Оценки и просмотры (' + totalVoted + ')',
+                                component: 'kp_voted_full',
+                                page: 1
+                            });
+                        }
+                    };
+
+                    lines.push({
+                        title: 'Оценки и просмотры',
+                        results: [votedFolder].concat(lastVoted10),
+                        nomore: true
+                    });
                 }
 
-                var totalCount = data.total || data.items.length;
-                var cards = data.items;
-                var last10 = cards.slice(0, 10);
+                // 2. Полоска «Буду смотреть» (вторая полоска)
+                if (plannedRes && plannedRes.items && plannedRes.items.length > 0) {
+                    var totalPlanned = plannedRes.total || plannedRes.items.length;
+                    var plannedCards = plannedRes.items;
+                    var lastPlanned10 = plannedCards.slice(0, 10);
 
-                // Привязываем клик к фильмам
-                last10.forEach(function (card) {
-                    card.onEnter = function () {
-                        openMovieCard(card);
+                    lastPlanned10.forEach(function (card) {
+                        card.onEnter = function () {
+                            openMovieCard(card);
+                        };
+                    });
+
+                    var plannedFolder = {
+                        cardClass: function (elem, params) {
+                            return new FolderCard(elem, params);
+                        },
+                        title: 'Смотреть все',
+                        total: totalPlanned,
+                        results: plannedCards,
+                        onEnter: function () {
+                            Lampa.Activity.push({
+                                title: 'Буду смотреть (' + totalPlanned + ')',
+                                component: 'kp_bookmarks_full',
+                                page: 1
+                            });
+                        }
                     };
-                });
 
-                // Первая карточка: специальная папка «Смотреть все»
-                var folderItem = {
-                    cardClass: function (elem, params) {
-                        return new FolderCard(elem, params);
-                    },
-                    title: 'Смотреть все',
-                    total: totalCount,
-                    results: cards,
-                    onEnter: function () {
-                        Lampa.Activity.push({
-                            title: 'Буду смотреть (' + totalCount + ')',
-                            component: 'kp_bookmarks_full',
-                            page: 1
-                        });
-                    }
-                };
+                    lines.push({
+                        title: 'Буду смотреть',
+                        results: [plannedFolder].concat(lastPlanned10),
+                        nomore: true
+                    });
+                }
 
-                // Формируем единственную строку: папка + 10 фильмов
-                var lineItems = [folderItem].concat(last10);
+                if (lines.length === 0) {
+                    comp.empty();
+                } else {
+                    comp.build(lines);
+                }
+            }
 
-                var lines = [{
-                    title: 'Буду смотреть',
-                    results: lineItems,
-                    nomore: true
-                }];
-
-                comp.build(lines);
+            // Загружаем обе полоски параллельно
+            loadVotedWatchlist(token, 1, function (data) {
+                votedRes = data;
+                checkDone();
             }, function () {
-                comp.activity.loader(false);
-                Lampa.Noty.show('Не удалось загрузить закладки');
-                comp.empty();
+                votedRes = null;
+                checkDone();
+            });
+
+            loadWatchlist(token, 1, function (data) {
+                plannedRes = data;
+                checkDone();
+            }, function () {
+                plannedRes = null;
+                checkDone();
             });
         };
 
@@ -890,6 +1108,136 @@
         return comp;
     }
 
+    // Компонент полного просмотра «Оценки и просмотры» (сеткой) с бесконечной пагинацией
+    function KpVotedFullComponent(object) {
+        var comp;
+        var hasMaker = typeof Lampa.Maker !== 'undefined' && typeof Lampa.Maker.make === 'function';
+
+        if (hasMaker) {
+            comp = Lampa.Maker.make('Category', object, function (module) {
+                return module.toggle(Lampa.Maker.module('Category').MASK.base, 'Pagination');
+            });
+
+            comp.use({
+                onCreate: function () {
+                    var token = getAccountToken();
+                    if (!token) {
+                        comp.empty();
+                        return;
+                    }
+
+                    loadVotedWatchlist(token, object.page || 1, function (data) {
+                        if (!data || !data.items || data.items.length === 0) {
+                            comp.empty();
+                            return;
+                        }
+
+                        comp.build({
+                            secuses: true,
+                            page: object.page || 1,
+                            total_pages: data.total_pages || 1,
+                            results: data.items
+                        });
+                    }, function () {
+                        comp.empty();
+                    });
+                },
+                onNext: function (resolve, reject) {
+                    var token = getAccountToken();
+                    if (!token) return reject();
+
+                    loadVotedWatchlist(token, object.page, function (data) {
+                        if (data && data.items && data.items.length > 0) {
+                            resolve({
+                                results: data.items,
+                                total_pages: data.total_pages
+                            });
+                        } else {
+                            reject();
+                        }
+                    }, function () {
+                        reject();
+                    });
+                },
+                onInstance: function (item, data) {
+                    item.use({
+                        onCreate: function () {
+                            applyKpVoteBadge(item.render(true), data);
+                        },
+                        onEnter: function () {
+                            openMovieCard(data);
+                        },
+                        onFocus: function () {
+                            if (Lampa.Background && Lampa.Utils) {
+                                Lampa.Background.change(Lampa.Utils.cardImgBackground(data));
+                            }
+                        }
+                    });
+                }
+            });
+        } else {
+            comp = new Lampa.InteractionCategory(object);
+
+            comp.create = function () {
+                var token = getAccountToken();
+                if (!token) {
+                    comp.empty();
+                    return;
+                }
+
+                comp.activity.loader(true);
+
+                loadVotedWatchlist(token, object.page || 1, function (data) {
+                    comp.activity.loader(false);
+
+                    if (!data || !data.items || data.items.length === 0) {
+                        comp.empty();
+                        return;
+                    }
+
+                    comp.build({
+                        secuses: true,
+                        page: object.page || 1,
+                        total_pages: data.total_pages || 1,
+                        results: data.items
+                    });
+
+                    comp.render().find('.category-full').addClass('mapping--grid cols--6');
+                }, function () {
+                    comp.activity.loader(false);
+                    comp.empty();
+                });
+            };
+
+            comp.cardRender = function (obj, element, card) {
+                applyKpVoteBadge(card.render(true), element);
+                card.onEnter = function () {
+                    openMovieCard(element);
+                };
+            };
+
+            comp.nextPageReuest = function (obj, resolve, reject) {
+                var token = getAccountToken();
+                if (!token) return reject();
+
+                loadVotedWatchlist(token, obj.page, function (data) {
+                    if (data && data.items && data.items.length > 0) {
+                        resolve({
+                            results: data.items,
+                            total_pages: data.total_pages
+                        });
+                    } else {
+                        reject();
+                    }
+                }, function () {
+                    reject();
+                });
+            };
+        }
+
+        return comp;
+    }
+
     // =========================================================================
     // БЛОК 5: БОКОВОЕ МЕНЮ И ИНИЦИАЛИЗАЦИЯ
     // =========================================================================
@@ -897,8 +1245,9 @@
     // Регистрация компонентов активности
     Lampa.Component.add('kp_bookmarks', KpBookmarksComponent);
     Lampa.Component.add('kp_bookmarks_full', KpBookmarksFullComponent);
+    Lampa.Component.add('kp_voted_full', KpVotedFullComponent);
 
-    // Добавление стилей сетки для идеального выравнивания карточек
+    // Добавление стилей сетки для идеального выравнивания карточек и фирменных оценок КП
     var gridStyle = document.createElement('style');
     gridStyle.innerHTML =
         '.category-full.mapping--grid.cols--6 > .card {' +
@@ -909,6 +1258,21 @@
         '}' +
         '.category-full.mapping--grid.cols--6 {' +
             'padding: 0 1em !important;' +
+        '}' +
+        '.card--vote-green .card__vote {' +
+            'background-color: #30a332 !important;' +
+            'color: #ffffff !important;' +
+            'font-weight: 700 !important;' +
+        '}' +
+        '.card--vote-grey .card__vote {' +
+            'background-color: #777777 !important;' +
+            'color: #ffffff !important;' +
+            'font-weight: 700 !important;' +
+        '}' +
+        '.card--vote-red .card__vote {' +
+            'background-color: #e64646 !important;' +
+            'color: #ffffff !important;' +
+            'font-weight: 700 !important;' +
         '}';
     document.head.appendChild(gridStyle);
 
