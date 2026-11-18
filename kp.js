@@ -26,6 +26,10 @@
         return Lampa.Storage.get('kp_smart_email', '') || Lampa.Storage.get('kinopoisk_email', '');
     }
 
+    function getAccountAvatar() {
+        return Lampa.Storage.get('kp_user_avatar', '');
+    }
+
     function getSocialAlias() {
         return Lampa.Storage.get('kp_social_alias', 'rusick') || 'rusick';
     }
@@ -33,9 +37,31 @@
     function clearAccount() {
         Lampa.Storage.set('kp_smart_token', '');
         Lampa.Storage.set('kp_smart_email', '');
+        Lampa.Storage.set('kp_user_avatar', '');
         Lampa.Storage.set('kinopoisk_access_token', '');
         Lampa.Storage.set('kinopoisk_email', '');
         Lampa.Storage.set('kinopoisk_refresh_token', '');
+    }
+
+    function syncUserProfile(token, cb) {
+        if (!token) return;
+        network.silent('https://login.yandex.ru/info?format=json', function (userData) {
+            if (userData) {
+                if (userData.default_email) {
+                    Lampa.Storage.set('kp_smart_email', userData.default_email);
+                }
+                if (userData.default_avatar_id) {
+                    var avatarUrl = 'https://avatars.yandex.net/get-yapic/' + userData.default_avatar_id + '/islands-200';
+                    Lampa.Storage.set('kp_user_avatar', avatarUrl);
+                }
+                if (cb) cb(userData);
+            }
+        }, function () {}, false, { headers: { 'Authorization': 'OAuth ' + token } });
+    }
+
+    var initToken = getAccountToken();
+    if (initToken && !getAccountAvatar()) {
+        syncUserProfile(initToken);
     }
 
     // Современные компактные всплывающие уведомления сверху (Lampa.Bell) без звука
@@ -80,32 +106,52 @@
         field: { name: 'Аккаунт' }
     });
 
-    // Иконка профиля Кинопоиска для настроек
-    var kpAvatarIcon = '<div class="settings-param__avatar" style="flex-shrink:0;width:2.4em;height:2.4em;margin-right:1.2em;border-radius:50%;background:#ff6600;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 0 0.8em rgba(255,102,0,0.3);">' +
-        '<svg viewBox="0 0 215 215" fill="currentColor" style="width:1.5em;height:1.5em;"><path d="M215 121.415l-99.297-6.644 90.943 36.334a106.416 106.416 0 0 0 8.354-29.69z" /><path d="M194.608 171.609C174.933 197.942 143.441 215 107.948 215 48.33 215 0 166.871 0 107.5 0 48.13 48.33 0 107.948 0c35.559 0 67.102 17.122 86.77 43.539l-90.181 48.07L162.57 32.25h-32.169L90.892 86.862V32.25H64.77v150.5h26.123v-54.524l39.509 54.524h32.169l-56.526-57.493 88.564 46.352z" /><path d="M206.646 63.895l-90.308 36.076L215 93.583a106.396 106.396 0 0 0-8.354-29.688z"/></svg>' +
-    '</div>';
-
     function renderAuthItem(item) {
         var token = getAccountToken();
         var email = getAccountEmail();
+        var avatar = getAccountAvatar();
 
-        if (item.find('.settings-param__avatar').length === 0) {
-            item.css({
-                display: 'flex',
-                'align-items': 'center'
+        if (token && !avatar) {
+            syncUserProfile(token, function () {
+                var newAvatar = getAccountAvatar();
+                if (newAvatar) {
+                    var img = item.find('.settings-param__avatar');
+                    if (img.length) {
+                        img.attr('src', newAvatar).show();
+                    } else {
+                        item.prepend('<img class="settings-param__avatar" src="' + newAvatar + '" style="width: 2.6em; height: 2.6em; border-radius: 50%; object-fit: cover; margin-right: 1.2em; flex-shrink: 0;" />');
+                    }
+                }
             });
-            var content = jq('<div class="settings-param__content" style="flex-grow:1;"></div>');
-            item.find('.settings-param__name, .settings-param__descr').appendTo(content);
-            item.prepend(kpAvatarIcon);
-            item.append(content);
         }
 
-        if (token) {
-            item.find('.settings-param__name').html((email || 'Аккаунт подключен') + ' <span class="settings-param__status" style="position:static;display:inline-block;vertical-align:middle;margin-left:0.6em;background:#44bb66;width:0.6em;height:0.6em;border-radius:50%;"></span>');
-            item.find('.settings-param__descr').text('Вы вошли в аккаунт Яндекса');
+        var avatarImg = item.find('.settings-param__avatar');
+        if (token && avatar) {
+            if (avatarImg.length === 0) {
+                avatarImg = jq('<img class="settings-param__avatar" src="' + avatar + '" style="width: 2.6em; height: 2.6em; border-radius: 50%; object-fit: cover; margin-right: 1.2em; flex-shrink: 0;" />');
+                avatarImg.on('error', function () { jq(this).hide(); });
+                item.prepend(avatarImg);
+            } else {
+                avatarImg.attr('src', avatar).show();
+            }
         } else {
-            item.find('.settings-param__name').text('Авторизация в Яндексе');
-            item.find('.settings-param__descr').text('Нажмите для входа по коду');
+            if (avatarImg.length) avatarImg.hide();
+        }
+
+        item.css({
+            display: 'flex',
+            'align-items': 'center'
+        });
+
+        var nameElem = item.find('.settings-param__name');
+        var descrElem = item.find('.settings-param__descr');
+
+        if (token) {
+            nameElem.text(email || 'Аккаунт подключен');
+            descrElem.text('Вы вошли в аккаунт Яндекса');
+        } else {
+            nameElem.text('Авторизация в Яндексе');
+            descrElem.text('Нажмите для входа по коду');
         }
     }
 
@@ -264,6 +310,10 @@
                             network.silent('https://login.yandex.ru/info?format=json', function (userData) {
                                 var email = (userData && userData.default_email) ? userData.default_email : 'Аккаунт подключен';
                                 Lampa.Storage.set('kp_smart_email', email);
+                                if (userData && userData.default_avatar_id) {
+                                    var avatarUrl = 'https://avatars.yandex.net/get-yapic/' + userData.default_avatar_id + '/islands-200';
+                                    Lampa.Storage.set('kp_user_avatar', avatarUrl);
+                                }
                                 updateSettingsUI();
                                 Lampa.Modal.close();
                                 Lampa.Controller.toggle('settings_component');
@@ -371,13 +421,6 @@
                         }
                     }
 
-                    // Фоновый запуск предзагрузки если есть токен
-                    if (token) {
-                        getOrResolveKpId(function (kpId) {
-                            loadStatus(kpId);
-                        });
-                    }
-
                     btnKp.on('hover:enter', function () {
                         if (!token) {
                             showNotify('Перейдите в Настройки -> Кинопоиск и авторизуйтесь');
@@ -426,7 +469,6 @@
                             onCheck: function (a) {
                                 if (a.type === 'planned') {
                                     if (a.checked) {
-                                        showNotify('Добавляю в «Буду смотреть»...');
                                         network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=true&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.plannedToWatch = true;
@@ -440,7 +482,6 @@
                                             showNotify('Ошибка соединения');
                                         });
                                     } else {
-                                        showNotify('Удаляю из «Буду смотреть»...');
                                         network.silent(scriptUrl + '?method=setPlannedToWatch&movie=' + kpId + '&planned=false&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.plannedToWatch = false;
@@ -456,7 +497,6 @@
                                     }
                                 } else if (a.type === 'watched') {
                                     if (a.checked) {
-                                        showNotify('Отмечаю как просмотрено...');
                                         network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=true&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.watched = true;
@@ -470,7 +510,6 @@
                                             showNotify('Ошибка соединения');
                                         });
                                     } else {
-                                        showNotify('Удаляю из просмотренных...');
                                         network.silent(scriptUrl + '?method=setWatched&movie=' + kpId + '&watched=false&oauth=' + token, function (res) {
                                             if (res && res.status === 'SUCCESS') {
                                                 status.watched = false;
@@ -508,7 +547,6 @@
                             items: items,
                             onSelect: function (a) {
                                 if (a.value === 0) {
-                                    showNotify('Удаляем оценку...');
                                     network.silent(scriptUrl + '?method=removeVote&movie=' + kpId + '&oauth=' + token, function (res) {
                                         if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.remove && res.data.movie.vote.remove.status === 'SUCCESS') {
                                             status.vote = 0;
@@ -520,7 +558,6 @@
                                         }
                                     });
                                 } else {
-                                    showNotify('Ставим оценку ' + a.value + '...');
                                     network.silent(scriptUrl + '?method=setVote&movie=' + kpId + '&rate=' + a.value + '&oauth=' + token, function (res) {
                                         if (res && res.data && res.data.movie && res.data.movie.vote && res.data.movie.vote.set && res.data.movie.vote.set.status === 'SUCCESS') {
                                             status.vote = a.value;
