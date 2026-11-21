@@ -114,8 +114,8 @@
             '        display: block !important;',
             '        margin: 0 !important;',
             '        margin-right: auto !important;',
-            '        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.95)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) !important;',
-            '        -webkit-filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.95)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) !important;',
+            '        filter: none !important;',
+            '        -webkit-filter: none !important;',
             '    }',
             '}'
         ].join('\n');
