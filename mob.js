@@ -92,17 +92,19 @@
             '        border-radius: 0 !important;',
             '    }',
             '',
+            '    /* 5. Скрытие года и страны над логотипом */',
             '    .full-start-new__head {',
-            '        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6) !important;',
+            '        display: none !important;',
             '    }',
             '',
-            '    /* 5. Логотип фильма: выравнивание по левому краю и наложение наполовину на задник */',
+            '    /* 5. Логотип фильма: выравнивание по левому краю и плавное появление */',
             '    .full-start-new__title {',
             '        display: flex !important;',
             '        justify-content: flex-start !important;',
             '        align-items: center !important;',
             '        text-align: left !important;',
             '        margin-bottom: 0.2em !important;',
+            '        transition: opacity 0.2s ease !important;',
             '    }',
             '',
             '    .full-start-new__logo {',
@@ -116,6 +118,13 @@
             '        margin-right: auto !important;',
             '        filter: none !important;',
             '        -webkit-filter: none !important;',
+            '        opacity: 0;',
+            '        animation: logoFadeIn 0.25s ease-out forwards !important;',
+            '    }',
+            '',
+            '    @keyframes logoFadeIn {',
+            '        from { opacity: 0; transform: translateY(3px); }',
+            '        to { opacity: 1; transform: translateY(0); }',
             '    }',
             '}'
         ].join('\n');
@@ -130,10 +139,62 @@
     injectStyles();
 
     // =====================================================================
-    // 2. ВЫБОР И ЗАГРУЗКА ЛОГОТИПА ИЗ TMDB
+    // 2. КЭШ И ОПТИМИЗАЦИЯ ВЫСОКОГО КАЧЕСТВА (FullHD)
     // =====================================================================
 
-    // Поиск лучшего логотипа по языку (по аналогии с ядром Lampa)
+    var logoCache = {};
+
+    function getCachedLogo(id) {
+        if (!id) return null;
+        if (logoCache[id]) return logoCache[id];
+        try {
+            if (window.Lampa && Lampa.Storage) {
+                var saved = Lampa.Storage.get('mob_logo_' + id, '');
+                if (saved) {
+                    logoCache[id] = saved;
+                    return saved;
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    function setCachedLogo(id, filePath) {
+        if (!id || !filePath) return;
+        logoCache[id] = filePath;
+        try {
+            if (window.Lampa && Lampa.Storage) {
+                Lampa.Storage.set('mob_logo_' + id, filePath);
+            }
+        } catch (e) {}
+    }
+
+    // Повышение качества задника до четкого w1280 (HD / FullHD)
+    function upgradeBackdropQuality(activityBody, movie) {
+        if (!activityBody || !movie || !movie.backdrop_path) return;
+        if (window.innerWidth > 480) return;
+
+        var hdBackdropUrl = '';
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            hdBackdropUrl = Lampa.TMDB.image('/t/p/w1280' + movie.backdrop_path);
+        } else if (window.Lampa && Lampa.Api && typeof Lampa.Api.img === 'function') {
+            hdBackdropUrl = Lampa.Api.img(movie.backdrop_path, 'w1280');
+        } else {
+            hdBackdropUrl = 'https://image.tmdb.org/t/p/w1280' + movie.backdrop_path;
+        }
+
+        if (hdBackdropUrl) {
+            var posterImg = activityBody.find('.full-start-new__poster img, .full--poster');
+            if (posterImg.length) {
+                var current = posterImg.attr('src') || '';
+                if (current !== hdBackdropUrl) {
+                    posterImg.attr('src', hdBackdropUrl);
+                }
+            }
+        }
+    }
+
+    // Поиск лучшего логотипа по языку
     function findBestLogo(logos) {
         if (!Array.isArray(logos) || !logos.length) return null;
 
@@ -163,20 +224,20 @@
         return logos[0].file_path || null;
     }
 
-    // Формирование ссылки на логотип
+    // Формирование ссылки на логотип в высоком разрешении w500 (вместо мутного w300)
     function getLogoUrl(filePath) {
         if (!filePath) return '';
         var cleanPath = filePath.replace(/\.svg$/i, '.png');
         if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
-            return Lampa.TMDB.image('/t/p/w300' + cleanPath);
+            return Lampa.TMDB.image('/t/p/w500' + cleanPath);
         }
         if (window.Lampa && Lampa.Api && typeof Lampa.Api.img === 'function') {
-            return Lampa.Api.img(cleanPath, 'w300');
+            return Lampa.Api.img(cleanPath, 'w500');
         }
-        return 'https://image.tmdb.org/t/p/w300' + cleanPath;
+        return 'https://image.tmdb.org/t/p/w500' + cleanPath;
     }
 
-    // Подстановка логотипа в карточку фильма
+    // Мгновенная подстановка и кэширование логотипа
     function applyMovieLogo(activityBody, movie) {
         if (!activityBody || !movie || !movie.id) return;
         if (window.innerWidth > 480) return;
@@ -190,6 +251,8 @@
             if (!filePath) return;
             var logoUrl = getLogoUrl(filePath);
             if (!logoUrl) return;
+
+            setCachedLogo(movie.id, filePath);
 
             var img = new Image();
             img.className = 'full-start-new__logo';
@@ -208,7 +271,14 @@
             img.src = logoUrl;
         }
 
-        // 1. Проверяем, есть ли уже логотипы в объекте фильма
+        // 1. Проверяем кэш логотипов (мгновенный показ за 0 мс)
+        var cached = getCachedLogo(movie.id);
+        if (cached) {
+            renderLogo(cached);
+            return;
+        }
+
+        // 2. Проверяем, есть ли уже логотипы в объекте фильма
         if (movie.images && movie.images.logos && movie.images.logos.length > 0) {
             var best = findBestLogo(movie.images.logos);
             if (best) {
@@ -217,7 +287,7 @@
             }
         }
 
-        // 2. Если логотипов не было в ответе, запрашиваем через TMDB Images API
+        // 3. Быстрый параллельный запрос к TMDB Images API
         var type = (movie.type === 'tv' || movie.name || movie.first_air_date) ? 'tv' : 'movie';
         var apiKey = '';
         try {
@@ -265,17 +335,24 @@
             } catch (e) {}
         }
 
-        // Подписка на открытие полной карточки фильма
+        // Обработка карточки фильма: перехватываем как 'start' (моментально), так и 'complite'
+        function handleFullCard(e) {
+            if (window.innerWidth > 480) return;
+            var movieData = (e.data && e.data.movie) || (e.object && e.object.card);
+            var bodyElem = e.body || (e.object && e.object.activity && e.object.activity.render && e.object.activity.render());
+
+            if (movieData && bodyElem) {
+                upgradeBackdropQuality(bodyElem, movieData);
+                applyMovieLogo(bodyElem, movieData);
+            }
+        }
+
         if (window.Lampa && Lampa.Listener) {
             Lampa.Listener.follow('full', function (e) {
-                if (window.innerWidth > 480) return;
-
-                if (e.type === 'complite' || e.type === 'complete') {
-                    var movieData = (e.data && e.data.movie) || (e.object && e.object.card);
-                    var bodyElem = e.body || (e.object && e.object.activity && e.object.activity.render && e.object.activity.render());
-                    if (movieData && bodyElem) {
-                        applyMovieLogo(bodyElem, movieData);
-                    }
+                if (e.type === 'start') {
+                    handleFullCard(e);
+                } else if (e.type === 'complite' || e.type === 'complete') {
+                    handleFullCard(e);
                 }
             });
         }
