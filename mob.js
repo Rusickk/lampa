@@ -1,353 +1,332 @@
-(function() {
+(function () {
     'use strict';
 
-    let observer;
-    window.logoplugin = true;
+    if (window.plugin_mob_styles_ready) return;
+    window.plugin_mob_styles_ready = true;
 
-    function log(...args) {
-        if (window.logoplugin) console.log('[combined-plugin]', ...args);
-    }
+    // =====================================================================
+    // 1. СТИЛИ ДЛЯ МОБИЛЬНЫХ ЭКРАНОВ (<= 480px)
+    // =====================================================================
+    function injectStyles() {
+        if (document.getElementById('lampa-mob-styles')) return;
 
-    // ===== ОСНОВНЫЕ СТИЛИ =====
-    function applyBaseStyles() {
-        var oldStyle = document.getElementById('no-blur-plugin-styles');
-        if (oldStyle) oldStyle.remove();
-        
+        var css = [
+            '@media screen and (max-width: 480px) {',
+            '    /* Отключение тяжелых фильтров блюра для разгрузки мобильного GPU */',
+            '    .full-start__poster,',
+            '    .full-start-new__poster,',
+            '    .full-start__poster img,',
+            '    .full-start-new__poster img,',
+            '    .screensaver__slides-slide img,',
+            '    .screensaver__bg,',
+            '    .card--collection .card__img {',
+            '        filter: none !important;',
+            '        -webkit-filter: none !important;',
+            '    }',
+            '',
+            '    .background {',
+            '        background: #000 !important;',
+            '    }',
+            '',
+            '    /* Очистка фона и теней карточки на мобильных */',
+            '    .full-start-new__right {',
+            '        background: none !important;',
+            '        border: none !important;',
+            '        border-radius: 0 !important;',
+            '        box-shadow: none !important;',
+            '        outline: none !important;',
+            '    }',
+            '    .full-start-new__right::before,',
+            '    .full-start-new__right::after {',
+            '        background: none !important;',
+            '        box-shadow: none !important;',
+            '        border: none !important;',
+            '        opacity: 0 !important;',
+            '        content: unset !important;',
+            '    }',
+            '',
+            '    /* Блок заголовка и логотипа фильма */',
+            '    .full-start-new__title {',
+            '        position: relative !important;',
+            '        width: 100% !important;',
+            '        display: flex !important;',
+            '        justify-content: center !important;',
+            '        align-items: center !important;',
+            '        min-height: 50px !important;',
+            '        margin: 0.4em auto !important;',
+            '        text-align: center !important;',
+            '        box-sizing: border-box !important;',
+            '    }',
+            '',
+            '    .full-start-new__logo {',
+            '        max-height: 80px !important;',
+            '        max-width: 85% !important;',
+            '        width: auto !important;',
+            '        height: auto !important;',
+            '        object-fit: contain !important;',
+            '        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) !important;',
+            '        -webkit-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) !important;',
+            '    }',
+            '',
+            '    /* Мягкий градиент постера в черный фон */',
+            '    .full-start-new__poster {',
+            '        position: relative !important;',
+            '        overflow: visible !important;',
+            '    }',
+            '',
+            '    .full-start-new__poster img,',
+            '    .full--poster {',
+            '        mask-image: linear-gradient(to bottom,',
+            '            rgba(0, 0, 0, 1) 0%,',
+            '            rgba(0, 0, 0, 1) 50%,',
+            '            rgba(0, 0, 0, 0.8) 70%,',
+            '            rgba(0, 0, 0, 0.4) 85%,',
+            '            rgba(0, 0, 0, 0) 100%) !important;',
+            '        -webkit-mask-image: linear-gradient(to bottom,',
+            '            rgba(0, 0, 0, 1) 0%,',
+            '            rgba(0, 0, 0, 1) 50%,',
+            '            rgba(0, 0, 0, 0.8) 70%,',
+            '            rgba(0, 0, 0, 0.4) 85%,',
+            '            rgba(0, 0, 0, 0) 100%) !important;',
+            '    }',
+            '',
+            '    .full-start-new__img {',
+            '        border-radius: 0 !important;',
+            '    }',
+            '',
+            '    .full-start-new__head {',
+            '        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6) !important;',
+            '    }',
+            '',
+            '    /* Центрирование элементов карточки */',
+            '    .full-start-new__right,',
+            '    .full-start__left {',
+            '        display: flex !important;',
+            '        flex-direction: column !important;',
+            '        justify-content: center !important;',
+            '        align-items: center !important;',
+            '    }',
+            '',
+            '    .full-start-new__buttons,',
+            '    .full-start-new__rate-line,',
+            '    .full-start__buttons,',
+            '    .full-start__details {',
+            '        justify-content: center !important;',
+            '        align-items: center !important;',
+            '        display: flex !important;',
+            '        flex-direction: row !important;',
+            '        gap: 0.5em !important;',
+            '        flex-wrap: wrap !important;',
+            '    }',
+            '',
+            '    .full-start-new__details,',
+            '    .full-descr__details,',
+            '    .full-descr__tags {',
+            '        justify-content: center !important;',
+            '        align-items: center !important;',
+            '        display: flex !important;',
+            '        flex-direction: row !important;',
+            '        flex-wrap: wrap !important;',
+            '    }',
+            '',
+            '    /* Текст описания фильма: выравнивание по центру без поломки абзацев */',
+            '    .full-descr__text {',
+            '        text-align: center !important;',
+            '        line-height: 1.5 !important;',
+            '    }',
+            '',
+            '    .full-start-new__tagline,',
+            '    .full-start__title,',
+            '    .full-start__title-original {',
+            '        text-align: center !important;',
+            '        width: 100% !important;',
+            '    }',
+            '',
+            '    /* Центрирование заголовков секций (Рекомендации, Актеры, Сезоны и др.) */',
+            '    .items-line__head {',
+            '        display: flex !important;',
+            '        justify-content: center !important;',
+            '        align-items: center !important;',
+            '        text-align: center !important;',
+            '        width: 100% !important;',
+            '    }',
+            '',
+            '    .items-line__title {',
+            '        text-align: center !important;',
+            '    }',
+            '}'
+        ].join('\n');
+
         var style = document.createElement('style');
-        style.id = 'no-blur-plugin-styles';
-        style.textContent = `
-            @media screen and (max-width: 480px) {
-                .full-start__poster,
-                .full-start-new__poster,
-                .full-start__poster img,
-                .full-start-new__poster img,
-                .screensaver__slides-slide img,
-                .screensaver__bg,
-                .card--collection .card__img {
-                    filter: none !important;
-                    -webkit-filter: none !important;
-                }
-                
-                .background {
-                    background: #000 !important;
-                }
-                
-                .full-start-new__right {
-                    background: none !important;
-                    border: none !important;
-                    border-radius: 0 !important;
-                    box-shadow: none !important;
-                    outline: none !important;
-                }
-                .full-start-new__right::before, 
-                .full-start-new__right::after {
-                    background: none !important;
-                    box-shadow: none !important;
-                    border: none !important;
-                    opacity: 0 !important;
-                    content: unset !important;
-                }
-                
-                .full-start-new__title {
-                    position: relative !important;
-                    width: 100% !important;
-                    display: flex !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                    min-height: 70px !important;
-                    margin: 0 auto !important;
-                    box-sizing: border-box !important;
-                }
-                
-                .full-start-new__poster {
-                    position: relative !important;
-                    overflow: visible !important;
-                }
-                
-                .full-start-new__poster img,
-                .full--poster {
-                    mask-image: linear-gradient(to bottom, 
-                        rgba(0, 0, 0, 1) 0%,
-                        rgba(0, 0, 0, 1) 50%,
-                        rgba(0, 0, 0, 0.8) 70%,
-                        rgba(0, 0, 0, 0.4) 85%,
-                        rgba(0, 0, 0, 0) 100%) !important;
-                    -webkit-mask-image: linear-gradient(to bottom, 
-                        rgba(0, 0, 0, 1) 0%,
-                        rgba(0, 0, 0, 1) 50%,
-                        rgba(0, 0, 0, 0.8) 70%,
-                        rgba(0, 0, 0, 0.4) 85%,
-                        rgba(0, 0, 0, 0) 100%) !important;
-                }
-                
-                .full-start-new__img {
-                    border-radius: 0 !important;
-                    mask-image: linear-gradient(to bottom, 
-                        rgba(0, 0, 0, 0) 0%,
-                        rgba(0, 0, 0, 0.3) 5%,
-                        rgba(0, 0, 0, 0.6) 12%,
-                        rgba(0, 0, 0, 0.85) 20%,
-                        rgba(0, 0, 0, 1) 30%,
-                        rgba(0, 0, 0, 1) 70%,
-                        rgba(0, 0, 0, 0.8) 85%,
-                        rgba(0, 0, 0, 0.4) 95%,
-                        rgba(0, 0, 0, 0) 100%) !important;
-                    -webkit-mask-image: linear-gradient(to bottom, 
-                        rgba(0, 0, 0, 0) 0%,
-                        rgba(0, 0, 0, 0.3) 5%,
-                        rgba(0, 0, 0, 0.6) 12%,
-                        rgba(0, 0, 0, 0.85) 20%,
-                        rgba(0, 0, 0, 1) 30%,
-                        rgba(0, 0, 0, 1) 70%,
-                        rgba(0, 0, 0, 0.8) 85%,
-                        rgba(0, 0, 0, 0.4) 95%,
-                        rgba(0, 0, 0, 0) 100%) !important;
-                }
-                
-                .full-start-new__head {
-                    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6) !important;
-                }
-                
-                .full-start-new__right, .full-start__left {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                }
-                
-                .full-start-new__buttons, .full-start-new__rate-line, .full-start__buttons, .full-start__details {
-                    justify-content: center !important;
-                    align-items: center !important;
-                    display: flex !important;
-                    flex-direction: row !important;
-                    gap: 0.5em !important;
-                    flex-wrap: wrap !important;
-                }
-                
-                .full-start-new__details, .full-descr__details, .full-descr__tags {
-                    justify-content: center !important;
-                    align-items: center !important;
-                    display: flex !important;
-                    flex-direction: row !important;
-                    flex-wrap: wrap !important;
-                }
-                
-                .full-descr__text, .full-start-new__title, .full-start-new__tagline, .full-start__title, .full-start__title-original {
-                    display: flex !important;
-                    flex-direction: row !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                    text-align: center !important;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        return true;
+        style.id = 'lampa-mob-styles';
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(css));
+        (document.head || document.documentElement).appendChild(style);
     }
 
-    function initBlurPlugin() {
-        applyBaseStyles();
+    injectStyles();
 
-        setTimeout(applyBaseStyles, 100);
-        setTimeout(applyBaseStyles, 300);
-        setTimeout(applyBaseStyles, 500);
-        setTimeout(applyBaseStyles, 1000);
+    // =====================================================================
+    // 2. ВЫБОР И ЗАГРУЗКА ЛОГОТИПА ИЗ TMDB
+    // =====================================================================
 
-        setInterval(function() {
-            if (window.innerWidth <= 480) {
-                if (window.lampa_settings && window.lampa_settings.blur_poster !== false) {
-                    window.lampa_settings.blur_poster = false;
+    // Поиск лучшего логотипа по языку (по аналогии с media_loading_data ядра Lampa)
+    function findBestLogo(logos) {
+        if (!Array.isArray(logos) || !logos.length) return null;
+
+        var lang = 'ru';
+        try {
+            if (window.Lampa && Lampa.Storage) {
+                lang = Lampa.Storage.field('tmdb_lang') || Lampa.Storage.get('language') || 'ru';
+            }
+        } catch (e) {}
+
+        lang = String(lang).toLowerCase().split(/[-_]/)[0];
+
+        // Приоритеты: язык пользователя -> английский -> без языка -> любой доступный
+        var priorities = [lang, 'en', null, ''];
+        for (var p = 0; p < priorities.length; p++) {
+            var targetLang = priorities[p];
+            for (var i = 0; i < logos.length; i++) {
+                var item = logos[i];
+                if (!item || !item.file_path) continue;
+                var itemLang = item.iso_639_1 ? String(item.iso_639_1).toLowerCase() : null;
+                if (targetLang === null ? !itemLang : itemLang === targetLang) {
+                    return item.file_path;
                 }
             }
-        }, 1000);
-    }
-
-    // ===== ФУНКЦИИ ДЛЯ МОБИЛЬНЫХ СТИЛЕЙ =====
-    function initMobileStyles() {
-        if (window.innerWidth > 480) return;
-        
-        applyMobileStyles();
-        
-        if (typeof Lampa.Listener !== 'undefined' && typeof Lampa.Listener.follow === 'function') {
-            Lampa.Listener.follow('app', function(e) {
-                if (window.innerWidth > 480) return;
-                
-                if (e.type === 'full' || e.type === 'card') {
-                    applyMobileStyles();
-                    setTimeout(applyMobileStyles, 50);
-                    setTimeout(applyMobileStyles, 150);
-                    setTimeout(applyMobileStyles, 400);
-                    setTimeout(applyMobileStyles, 800);
-                    startDOMObserver();
-                }
-                
-                if (e.type === 'hide' || e.type === 'component_hide') {
-                    stopDOMObserver();
-                }
-            });
         }
 
-        startDOMObserver();
-        
-        setTimeout(applyMobileStyles, 200);
-        setTimeout(applyMobileStyles, 500);
-        setTimeout(applyMobileStyles, 1000);
-        setTimeout(applyMobileStyles, 1500);
+        return logos[0].file_path || null;
     }
 
-    function startDOMObserver() {
-        if (window.innerWidth > 480) return;
-        
-        stopDOMObserver();
-        
-        observer = new MutationObserver(function(mutations) {
-            if (window.innerWidth > 480) return;
-            
-            let shouldApplyStyles = false;
-            
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    for (let node of mutation.addedNodes) {
-                        if (node.nodeType === 1) {
-                            if (node.classList && (
-                                node.classList.contains('full-start-new__right') ||
-                                node.classList.contains('full-start__left') ||
-                                node.classList.contains('items-line__head') ||
-                                node.classList.contains('full-start-new__poster') ||
-                                node.querySelector('.full-start-new__right') ||
-                                node.querySelector('.full-start__left') ||
-                                node.querySelector('.items-line__head') ||
-                                node.querySelector('.full-start-new__poster')
-                            )) {
-                                shouldApplyStyles = true;
-                            }
-                        }
-                    }
-                }
-                
-                if (mutation.type === 'attributes' && 
-                    mutation.target.classList && 
-                    (mutation.target.classList.contains('full-start-new__poster'))) {
-                    shouldApplyStyles = true;
-                }
-            });
-            
-            if (shouldApplyStyles) {
-                applyMobileStyles();
-                setTimeout(applyMobileStyles, 50);
-                setTimeout(applyMobileStyles, 100);
-                setTimeout(applyBaseStyles, 150);
-            }
-        });
-        
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class', 'style']
-        });
-    }
-
-    function stopDOMObserver() {
-        if (observer) {
-            observer.disconnect();
-            observer = null;
+    // Формирование ссылки на логотип
+    function getLogoUrl(filePath) {
+        if (!filePath) return '';
+        var cleanPath = filePath.replace(/\.svg$/i, '.png');
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            return Lampa.TMDB.image('/t/p/w300' + cleanPath);
         }
+        if (window.Lampa && Lampa.Api && typeof Lampa.Api.img === 'function') {
+            return Lampa.Api.img(cleanPath, 'w300');
+        }
+        return 'https://image.tmdb.org/t/p/w300' + cleanPath;
     }
 
-    function applyMobileStyles() {
+    // Подстановка логотипа в карточку фильма
+    function applyMovieLogo(activityBody, movie) {
+        if (!activityBody || !movie || !movie.id) return;
         if (window.innerWidth > 480) return;
-        
-        applySectionHeadStyles();
-    }
 
-    function applySectionHeadStyles() {
-        if (window.innerWidth > 480) return;
-        
-        const sectionTitles = [
-            'Рекомендации',
-            'Режиссер', 
-            'Актеры',
-            'Подробно',
-            'Похожие',
-            'Коллекция'
-        ];
+        var titleElem = activityBody.find('.full-start-new__title');
+        if (!titleElem.length || titleElem.hasClass('has--logo')) return;
 
-        document.querySelectorAll('.items-line__head').forEach(element => {
-            const text = element.textContent.trim();
-            
-            if (text && (
-                sectionTitles.includes(text) ||
-                text.includes('Сезон')
-            )) {
-                element.style.display = 'flex';
-                element.style.justifyContent = 'center';
-                element.style.alignItems = 'center';
-                element.style.width = '100%';
+        var origTitleText = titleElem.text().trim();
+
+        function renderLogo(filePath) {
+            if (!filePath) return;
+            var logoUrl = getLogoUrl(filePath);
+            if (!logoUrl) return;
+
+            var img = new Image();
+            img.className = 'full-start-new__logo';
+            img.alt = origTitleText;
+
+            img.onload = function () {
+                if (!titleElem.closest('body').length) return;
+                titleElem.addClass('has--logo');
+                titleElem.empty().append(img);
+            };
+
+            img.onerror = function () {
+                // Если картинка не загрузилась, оставляем исходный текст
+                titleElem.text(origTitleText);
+            };
+
+            img.src = logoUrl;
+        }
+
+        // 1. Проверяем, есть ли уже логотипы в объекте фильма (встроены в append_to_response TMDB)
+        if (movie.images && movie.images.logos && movie.images.logos.length > 0) {
+            var best = findBestLogo(movie.images.logos);
+            if (best) {
+                renderLogo(best);
+                return;
             }
-        });
-    }
+        }
 
-    // ===== ФУНКЦИИ ДЛЯ ЛОГОТИПОВ =====
-    function initLogoPlugin() {
-        Lampa.Listener.follow('full', function(e) {
-            if (window.innerWidth > 480) return;
-            
-            if (e.type === 'complite') {
-                var data = e.data.movie;
-                var type = data.name ? 'tv' : 'movie';
-                
-                if (data.id !== '') {
-                    var url = Lampa.TMDB.api(type + '/' + data.id + '/images?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language'));
-                    
-                    $.get(url, function(data) {
-                        if (data.logos && data.logos[0]) {
-                            var logo = data.logos[0].file_path;
-                            
-                            if (logo !== '') {
-                                e.object.activity.render().find('.full-start-new__title').html(
-                                    '<div style="display: flex; justify-content: center; align-items: center; width: 100%;">' +
-                                    '<img style="margin-top: 5px; max-height: 125px;" src="' + Lampa.TMDB.image('/t/p/w300' + logo.replace('.svg', '.png')) + '"/>' +
-                                    '</div>'
-                                );
-                            }
-                        }
-                    }).fail(function() {
-                        log('Failed to load logo');
-                    });
-                }
-            }
-        });
-    }
+        // 2. Если логотипов не было в ответе, запрашиваем через TMDB Images API
+        var type = (movie.type === 'tv' || movie.name || movie.first_air_date) ? 'tv' : 'movie';
+        var apiKey = '';
+        try {
+            if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.key === 'function') apiKey = Lampa.TMDB.key();
+            else if (window.Lampa && Lampa.Api && typeof Lampa.Api.key === 'function') apiKey = Lampa.Api.key();
+        } catch (e) {}
 
-    // ===== ОБЩАЯ ИНИЦИАЛИЗАЦИЯ =====
-    function initAllPlugins() {
-        initBlurPlugin();
-        initMobileStyles();
-        initLogoPlugin();
-    }
+        if (apiKey) {
+            var query = type + '/' + movie.id + '/images?api_key=' + apiKey + '&include_image_language=ru,en,null';
+            var url = (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function')
+                ? Lampa.TMDB.api(query)
+                : 'https://api.themoviedb.org/3/' + query;
 
-    function startPlugin() {
-        if (window.appready) {
-            initAllPlugins();
-        } else {
-            if (typeof Lampa.Listener !== 'undefined' && typeof Lampa.Listener.follow === 'function') {
-                Lampa.Listener.follow('app', function(e) {
-                    if (e.type === 'ready') {
-                        setTimeout(initAllPlugins, 500);
+            var req = (window.Lampa && Lampa.Reguest) ? new Lampa.Reguest() : null;
+            if (req && req.silent) {
+                req.silent(url, function (json) {
+                    if (json && json.logos && json.logos.length > 0) {
+                        var bestLogo = findBestLogo(json.logos);
+                        if (bestLogo) renderLogo(bestLogo);
                     }
                 });
-            } else {
-                setTimeout(initAllPlugins, 2000);
+            } else if (window.$ && $.get) {
+                $.get(url, function (json) {
+                    if (json && json.logos && json.logos.length > 0) {
+                        var bestLogo = findBestLogo(json.logos);
+                        if (bestLogo) renderLogo(bestLogo);
+                    }
+                });
             }
         }
     }
 
-    if (typeof Lampa.Timer !== 'undefined' && typeof Lampa.Timer.add === 'function') {
-        Lampa.Timer.add(500, startPlugin, true);
-    } else {
-        setTimeout(startPlugin, 500);
+    // =====================================================================
+    // 3. ИНИЦИАЛИЗАЦИЯ И СЛУШАТЕЛИ СОБЫТИЙ LAMPA
+    // =====================================================================
+    function initPlugin() {
+        injectStyles();
+
+        // Отключаем блюр постеров в настройках Lampa для мобильных
+        if (window.innerWidth <= 480) {
+            try {
+                if (window.lampa_settings) {
+                    window.lampa_settings.blur_poster = false;
+                }
+            } catch (e) {}
+        }
+
+        // Подписка на открытие полной карточки фильма
+        if (window.Lampa && Lampa.Listener) {
+            Lampa.Listener.follow('full', function (e) {
+                if (window.innerWidth > 480) return;
+
+                // В ядре Lampa событие окончания загрузки пишется как 'complite'
+                if (e.type === 'complite' || e.type === 'complete') {
+                    var movieData = (e.data && e.data.movie) || (e.object && e.object.card);
+                    var bodyElem = e.body || (e.object && e.object.activity && e.object.activity.render && e.object.activity.render());
+                    if (movieData && bodyElem) {
+                        applyMovieLogo(bodyElem, movieData);
+                    }
+                }
+            });
+        }
     }
 
+    if (window.appready) {
+        initPlugin();
+    } else if (window.Lampa && Lampa.Listener) {
+        Lampa.Listener.follow('app', function (e) {
+            if (e.type === 'ready') initPlugin();
+        });
+    } else {
+        document.addEventListener('DOMContentLoaded', initPlugin);
+    }
 })();
