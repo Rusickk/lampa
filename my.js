@@ -12,6 +12,7 @@
         'https://Rusickk.github.io/lampa/mob.js',
         'https://darkestclouds.github.io/plugins/applecation/applecation.min.js',  
         'https://Rusickk.github.io/lampa/kp.js',
+        'https://Rusickk.github.io/lampa/cleaner.js',
     ], function () {  
         console.log('Плагины загружены');  
     });  
