@@ -12,7 +12,7 @@
 
         var css = [
             '@media screen and (max-width: 480px) {',
-            '    /* Отключение тяжелых фильтров блюра для разгрузки мобильного GPU */',
+            '    /* 1. Отключение тяжелого блюра для разгрузки мобильного GPU */',
             '    .full-start__poster,',
             '    .full-start-new__poster,',
             '    .full-start__poster img,',
@@ -28,7 +28,7 @@
             '        background: #000 !important;',
             '    }',
             '',
-            '    /* Очистка фона и теней карточки на мобильных */',
+            '    /* 2. Чистый фон без лишних серых плашек и теней */',
             '    .full-start-new__right {',
             '        background: none !important;',
             '        border: none !important;',
@@ -45,30 +45,23 @@
             '        content: unset !important;',
             '    }',
             '',
-            '    /* Блок заголовка и логотипа фильма */',
-            '    .full-start-new__title {',
-            '        position: relative !important;',
-            '        width: 100% !important;',
-            '        display: flex !important;',
-            '        justify-content: center !important;',
-            '        align-items: center !important;',
-            '        min-height: 50px !important;',
-            '        margin: 0.4em auto !important;',
-            '        text-align: center !important;',
-            '        box-sizing: border-box !important;',
+            '    /* 3. Исправление отступов: убираем огромную пустоту перед «Подробно» */',
+            '    .full-start-new {',
+            '        padding-bottom: 0.5em !important;',
             '    }',
             '',
-            '    .full-start-new__logo {',
-            '        max-height: 80px !important;',
-            '        max-width: 85% !important;',
-            '        width: auto !important;',
-            '        height: auto !important;',
-            '        object-fit: contain !important;',
-            '        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) !important;',
-            '        -webkit-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) !important;',
+            '    .full-start-new__reactions:empty {',
+            '        display: none !important;',
+            '        margin: 0 !important;',
+            '        min-height: 0 !important;',
             '    }',
             '',
-            '    /* Мягкий градиент постера в черный фон */',
+            '    /* Отступ снизу, чтобы описание не упиралось в нижнюю панель навигации */',
+            '    .full-descr {',
+            '        padding-bottom: 5em !important;',
+            '    }',
+            '',
+            '    /* 4. Плавное затемнение постера снизу в чёрный фон */',
             '    .full-start-new__poster {',
             '        position: relative !important;',
             '        overflow: visible !important;',
@@ -98,61 +91,17 @@
             '        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6) !important;',
             '    }',
             '',
-            '    /* Центрирование элементов карточки */',
-            '    .full-start-new__right,',
-            '    .full-start__left {',
-            '        display: flex !important;',
-            '        flex-direction: column !important;',
-            '        justify-content: center !important;',
-            '        align-items: center !important;',
-            '    }',
-            '',
-            '    .full-start-new__buttons,',
-            '    .full-start-new__rate-line,',
-            '    .full-start__buttons,',
-            '    .full-start__details {',
-            '        justify-content: center !important;',
-            '        align-items: center !important;',
-            '        display: flex !important;',
-            '        flex-direction: row !important;',
-            '        gap: 0.5em !important;',
-            '        flex-wrap: wrap !important;',
-            '    }',
-            '',
-            '    .full-start-new__details,',
-            '    .full-descr__details,',
-            '    .full-descr__tags {',
-            '        justify-content: center !important;',
-            '        align-items: center !important;',
-            '        display: flex !important;',
-            '        flex-direction: row !important;',
-            '        flex-wrap: wrap !important;',
-            '    }',
-            '',
-            '    /* Текст описания фильма: выравнивание по центру без поломки абзацев */',
-            '    .full-descr__text {',
-            '        text-align: center !important;',
-            '        line-height: 1.5 !important;',
-            '    }',
-            '',
-            '    .full-start-new__tagline,',
-            '    .full-start__title,',
-            '    .full-start__title-original {',
-            '        text-align: center !important;',
-            '        width: 100% !important;',
-            '    }',
-            '',
-            '    /* Центрирование заголовков секций (Рекомендации, Актеры, Сезоны и др.) */',
-            '    .items-line__head {',
-            '        display: flex !important;',
-            '        justify-content: center !important;',
-            '        align-items: center !important;',
-            '        text-align: center !important;',
-            '        width: 100% !important;',
-            '    }',
-            '',
-            '    .items-line__title {',
-            '        text-align: center !important;',
+            '    /* 5. Логотип фильма по центру блока названия */',
+            '    .full-start-new__logo {',
+            '        max-height: 75px !important;',
+            '        max-width: 85% !important;',
+            '        width: auto !important;',
+            '        height: auto !important;',
+            '        object-fit: contain !important;',
+            '        display: block !important;',
+            '        margin: 0.4em auto !important;',
+            '        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) !important;',
+            '        -webkit-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) !important;',
             '    }',
             '}'
         ].join('\n');
@@ -170,7 +119,7 @@
     // 2. ВЫБОР И ЗАГРУЗКА ЛОГОТИПА ИЗ TMDB
     // =====================================================================
 
-    // Поиск лучшего логотипа по языку (по аналогии с media_loading_data ядра Lampa)
+    // Поиск лучшего логотипа по языку (по аналогии с ядром Lampa)
     function findBestLogo(logos) {
         if (!Array.isArray(logos) || !logos.length) return null;
 
@@ -239,14 +188,13 @@
             };
 
             img.onerror = function () {
-                // Если картинка не загрузилась, оставляем исходный текст
                 titleElem.text(origTitleText);
             };
 
             img.src = logoUrl;
         }
 
-        // 1. Проверяем, есть ли уже логотипы в объекте фильма (встроены в append_to_response TMDB)
+        // 1. Проверяем, есть ли уже логотипы в объекте фильма
         if (movie.images && movie.images.logos && movie.images.logos.length > 0) {
             var best = findBestLogo(movie.images.logos);
             if (best) {
@@ -308,7 +256,6 @@
             Lampa.Listener.follow('full', function (e) {
                 if (window.innerWidth > 480) return;
 
-                // В ядре Lampa событие окончания загрузки пишется как 'complite'
                 if (e.type === 'complite' || e.type === 'complete') {
                     var movieData = (e.data && e.data.movie) || (e.object && e.object.card);
                     var bodyElem = e.body || (e.object && e.object.activity && e.object.activity.render && e.object.activity.render());
